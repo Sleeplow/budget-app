@@ -151,7 +151,6 @@
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
-    <button class="tab" onclick="showTab('revenus', this)">Revenus</button>
     <button class="tab" onclick="showTab('depenses', this)">Dépenses</button>
     <button class="tab" onclick="showTab('solde-futur', this)">Solde futur</button>
   </div>
@@ -167,48 +166,12 @@
     </div>
     <div class="metrics-grid">
       <div class="metric"><div class="metric-label">Solde actuel</div><div class="metric-value" id="m-solde">—</div></div>
-      <div class="metric"><div class="metric-label">Revenus ce mois</div><div class="metric-value positive" id="m-rev-mois">$0.00</div></div>
       <div class="metric"><div class="metric-label">Dépenses ce mois</div><div class="metric-value negative" id="m-mois">$0.00</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem;">
-      <div class="metric"><div class="metric-label">Revenus 30 prochains jours</div><div class="metric-value positive" id="m-rev-30j">$0.00</div></div>
-      <div class="metric"><div class="metric-label">Dépenses 30 prochains jours</div><div class="metric-value negative" id="m-30j">$0.00</div></div>
+      <div class="metric"><div class="metric-label">30 prochains jours</div><div class="metric-value negative" id="m-30j">$0.00</div></div>
     </div>
     <div class="card">
-      <div class="section-title">Prochaines transactions</div>
-      <div id="prochaines-list"><div class="empty-state">Aucune transaction ajoutée</div></div>
-    </div>
-  </div>
-
-  <!-- REVENUS -->
-  <div id="tab-revenus" class="section">
-    <div class="card">
-      <div class="section-title">Ajouter un revenu</div>
-      <div class="form-row">
-        <div class="form-group"><label>Description</label><input type="text" id="rev-desc" placeholder="Ex: Salaire, Freelance..."></div>
-        <div class="form-group"><label>Montant ($)</label><input type="number" id="rev-montant" placeholder="0.00" step="0.01" min="0"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="rev-date"></div>
-        <div class="form-group"><label>Fréquence</label>
-          <select id="rev-freq">
-            <option value="unique">Unique</option>
-            <option value="hebdo">Hebdomadaire</option>
-            <option value="bihebdo">Aux 2 semaines</option>
-            <option value="mensuel" selected>Mensuel</option>
-            <option value="bimensuel">Aux 2 mois</option>
-            <option value="trimestriel">Trimestriel</option>
-            <option value="annuel">Annuel</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn btn-green" onclick="ajouterRevenu()">+ Ajouter</button>
-    </div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;">Mes revenus (<span id="rev-count">0</span>)</div>
-      </div>
-      <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
+      <div class="section-title">Prochaines échéances</div>
+      <div id="prochaines-list"><div class="empty-state">Aucune dépense ajoutée</div></div>
     </div>
   </div>
 
@@ -254,7 +217,7 @@
         </div>
       </div>
       <div class="excel-info">
-        Le fichier Excel contient 4 onglets : <strong>Dépenses</strong>, <strong>Revenus</strong>, <strong>Catégories</strong> (modifiable — l'ordre et les noms sont respectés à l'import, "Autre" toujours en dernier) et <strong>Référence</strong> (fréquences valides, lecture seule).
+        Le fichier Excel contient 3 onglets : <strong>Dépenses</strong>, <strong>Catégories</strong> (modifiable — l'ordre et les noms sont respectés à l'import, "Autre" toujours en dernier) et <strong>Référence</strong> (fréquences valides, lecture seule).
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
       <div id="import-preview-zone"></div>
@@ -324,9 +287,7 @@
 <script>
 // ── ÉTAT ──
 let depenses = [];
-let revenus = [];
 let editingId = null;
-let editingRevId = null;
 let importPreviewData = null;
 let isSaving = false;
 let dragSrcIndex = null;
@@ -370,7 +331,8 @@ function isCatValid(cat) { return getCategories().includes(cat); }
 
 // ── UTILITAIRES ──
 function today() { return new Date().toISOString().slice(0,10); }
-function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function cleanDate(s) { if(!s) return today(); const str=String(s); const m=str.match(/^(\d{4}-\d{2}-\d{2})/); if(m) return m[1]; return str.slice(0,10); }
+function formatDate(s) { if(!s) return ''; const clean=cleanDate(String(s)); const p=clean.split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
@@ -403,13 +365,12 @@ function sauvegarderUrl() {
   chargerDepenses();
 }
 function demarrerApp() {
-  document.getElementById('setup-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('dep-date').value=today();
-  document.getElementById('rev-date').value=today();
-  document.getElementById('sf-date').value=addDaysStr(today(),30);
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('dep-date').value = today();
+  document.getElementById('sf-date').value = addDaysStr(today(), 30);
   refreshCatSelects();
-  chargerTout();
+  chargerDepenses();
 }
 
 // ── MODAL ──
@@ -481,144 +442,67 @@ function onDragEnd() {
 }
 
 async function resetApp() {
-  if (!confirm('Supprimer TOUTES les dépenses et tous les revenus? Irréversible.')) return;
+  if (!confirm('Supprimer TOUTES les dépenses? Irréversible.')) return;
   if (!confirm('Dernière confirmation — effacement dans Google Sheets aussi.')) return;
-  depenses=[]; revenus=[];
+  depenses=[];
   fermerParametres();
-  renderDepenses(); renderRevenus(); updateDashboard();
-  await sauvegarderTout();
-  showToast('App réinitialisée','info');
+  renderDepenses(); updateDashboard();
+  await sauvegarderDepenses();
+  showToast('App réinitialisée', 'info');
 }
 
 // ── GOOGLE SHEETS ──
-async function chargerTout() {
-  const url=getUrl();
-  if (!url) { setSyncStatus('error','URL non configurée'); return; }
-  setSyncStatus('loading','Chargement depuis Google Sheets...');
+async function chargerDepenses() {
+  const url = getUrl();
+  if (!url) { setSyncStatus('error', 'URL non configurée'); return; }
+  setSyncStatus('loading', 'Chargement depuis Google Sheets...');
   try {
-    const resp=await fetch(url+'?action=getAll',{redirect:'follow'});
-    const data=await resp.json();
-    if (Array.isArray(data)) {
-      depenses=data.map(mapDep); revenus=[];
-    } else {
-      depenses=(data.depenses||[]).map(mapDep);
-      revenus=(data.revenus||[]).map(mapRev);
-    }
-    setSyncStatus('ok',`Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard();
+    const resp = await fetch(url + '?action=getAll', { redirect: 'follow' });
+    const data = await resp.json();
+    depenses = data.map(d => ({
+      id: d.id || Date.now()+Math.random(),
+      desc: d.description || '',
+      montant: parseFloat(d.montant) || 0,
+      date: cleanDate(d.date || today()),
+      freq: d.frequence || 'mensuel',
+      cat: String(d.categorie || '')
+    }));
+    setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s)`);
+    renderDepenses(); updateDashboard();
   } catch(e) {
-    setSyncStatus('error','Erreur de connexion à Google Sheets');
-    showToast('Impossible de joindre Google Sheets','error');
-    depenses=[]; revenus=[]; renderDepenses(); renderRevenus();
+    setSyncStatus('error', 'Erreur de connexion à Google Sheets');
+    showToast('Impossible de joindre Google Sheets', 'error');
+    depenses=[]; renderDepenses();
   }
 }
 
-function mapDep(d) {
-  return { id:d.id||Date.now()+Math.random(), desc:d.description||'', montant:parseFloat(d.montant)||0, date:String(d.date||today()), freq:d.frequence||'mensuel', cat:String(d.categorie||'') };
-}
-function mapRev(r) {
-  return { id:r.id||Date.now()+Math.random(), desc:r.description||'', montant:parseFloat(r.montant)||0, date:String(r.date||today()), freq:r.frequence||'mensuel' };
-}
-
-async function sauvegarderTout() {
+async function sauvegarderDepenses() {
   if (isSaving) return;
-  const url=getUrl(); if (!url) return;
-  isSaving=true;
-  setSyncStatus('loading','Sauvegarde en cours...');
+  const url = getUrl(); if (!url) return;
+  isSaving = true;
+  setSyncStatus('loading', 'Sauvegarde en cours...');
   try {
-    await fetch(url,{method:'POST',body:JSON.stringify({action:'saveAll',depenses,revenus}),redirect:'follow'});
-    setSyncStatus('ok',`Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
+    await fetch(url, { method:'POST', body:JSON.stringify({ action:'save', depenses }), redirect:'follow' });
+    setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s)`);
     showToast('Sauvegardé dans Google Sheets');
   } catch(e) {
-    setSyncStatus('error','Erreur lors de la sauvegarde');
-    showToast('Erreur de sauvegarde','error');
+    setSyncStatus('error', 'Erreur lors de la sauvegarde');
+    showToast('Erreur de sauvegarde', 'error');
   }
-  isSaving=false;
+  isSaving = false;
 }
 
-async function syncNow() { await chargerTout(); showToast('Données rechargées','info'); }
+async function syncNow() { await chargerDepenses(); showToast('Données rechargées', 'info'); }
 
 // ── NAVIGATION ──
 function showTab(id, btn) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
   if (id==='tableau-bord') updateDashboard();
   if (id==='solde-futur') calculerSoldeFutur();
   if (id==='depenses') { editingId=null; renderDepenses(); }
-  if (id==='revenus') { editingRevId=null; renderRevenus(); }
-}
-
-// ── REVENUS CRUD ──
-function ajouterRevenu() {
-  const desc=document.getElementById('rev-desc').value.trim();
-  const montant=parseFloat(document.getElementById('rev-montant').value);
-  const date=document.getElementById('rev-date').value;
-  const freq=document.getElementById('rev-freq').value;
-  if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Veuillez remplir tous les champs.','error'); return; }
-  revenus.push({id:Date.now(),desc,montant,date,freq});
-  document.getElementById('rev-desc').value='';
-  document.getElementById('rev-montant').value='';
-  document.getElementById('rev-date').value=today();
-  renderRevenus(); updateDashboard();
-  sauvegarderTout();
-}
-
-function startEditRev(id) { editingRevId=id; renderRevenus(); }
-function cancelEditRev() { editingRevId=null; renderRevenus(); }
-
-function saveEditRev(id) {
-  const desc=document.getElementById('redit-desc-'+id).value.trim();
-  const montant=parseFloat(document.getElementById('redit-montant-'+id).value);
-  const date=document.getElementById('redit-date-'+id).value;
-  const freq=document.getElementById('redit-freq-'+id).value;
-  if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=revenus.findIndex(r=>r.id===id);
-  if (idx!==-1) revenus[idx]={id,desc,montant,date,freq};
-  editingRevId=null; renderRevenus(); updateDashboard();
-  sauvegarderTout();
-}
-
-function supprimerRevenu(id) {
-  if (!confirm('Supprimer ce revenu ?')) return;
-  revenus=revenus.filter(r=>r.id!==id);
-  if (editingRevId===id) editingRevId=null;
-  renderRevenus(); updateDashboard();
-  sauvegarderTout();
-}
-
-function renderRevenus() {
-  document.getElementById('rev-count').textContent=revenus.length;
-  const el=document.getElementById('rev-list-container');
-  if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
-  const sorted=[...revenus].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=sorted.map(r=>{
-    if (editingRevId===r.id) {
-      const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="redit-freq-${r.id}" style="width:125px;">${fo}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEditRev()">Annuler</button>
-        </div></td>
-      </tr>`;
-    }
-    return `<tr>
-      <td>${r.desc}</td>
-      <td style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</td>
-      <td>${formatDate(r.date)}</td>
-      <td><span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span></td>
-      <td><div class="edit-actions">
-        <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── DÉPENSES CRUD ──
@@ -634,7 +518,7 @@ function ajouterDepense() {
   document.getElementById('dep-montant').value='';
   document.getElementById('dep-date').value=today();
   renderDepenses(); updateDashboard();
-  sauvegarderTout();
+  sauvegarderDepenses();
 }
 
 function startEdit(id) { editingId=id; renderDepenses(); }
@@ -650,7 +534,7 @@ function saveEdit(id) {
   const idx=depenses.findIndex(d=>d.id===id);
   if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat};
   editingId=null; renderDepenses(); updateDashboard();
-  sauvegarderTout();
+  sauvegarderDepenses();
 }
 
 function supprimerDepense(id) {
@@ -658,7 +542,7 @@ function supprimerDepense(id) {
   depenses=depenses.filter(d=>d.id!==id);
   if (editingId===id) editingId=null;
   renderDepenses(); updateDashboard();
-  sauvegarderTout();
+  sauvegarderDepenses();
 }
 
 function renderDepenses() {
@@ -715,28 +599,33 @@ function exporterExcel() {
   wsDep['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16},{wch:16}];
   XLSX.utils.book_append_sheet(wb, wsDep, 'Dépenses');
 
-  // Onglet 2 — Revenus
-  const rev_data = [['id','description','montant','date','frequence']];
-  revenus.forEach(r => rev_data.push([r.id, r.desc, r.montant, r.date, r.freq]));
-  const wsRev = XLSX.utils.aoa_to_sheet(rev_data);
-  wsRev['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16}];
-  XLSX.utils.book_append_sheet(wb, wsRev, 'Revenus');
-
-  // Onglet 3 — Catégories (éditable)
+  // Onglet 2 — Catégories (éditable)
   const cats = getCategories();
-  const cat_data = [['categorie','note'],...cats.map(c=>[c,c==='Autre'?'(fixe — toujours en dernier)':''])];
+  const cat_data = [
+    ['categorie','note'],
+    ...cats.map(c => [c, c === 'Autre' ? '(fixe — toujours en dernier)' : ''])
+  ];
   const wsCat = XLSX.utils.aoa_to_sheet(cat_data);
   wsCat['!cols'] = [{wch:22},{wch:32}];
   XLSX.utils.book_append_sheet(wb, wsCat, 'Catégories');
 
-  // Onglet 4 — Référence (lecture seule)
-  const ref_data = [['Fréquences valides','Description'],['unique','Une seule fois'],['hebdo','Chaque semaine'],['bihebdo','Aux 2 semaines'],['mensuel','Chaque mois'],['bimensuel','Aux 2 mois'],['trimestriel','Aux 3 mois'],['annuel','Une fois par an']];
+  // Onglet 3 — Référence (lecture seule)
+  const ref_data = [
+    ['Fréquences valides','Description'],
+    ['unique','Une seule fois'],
+    ['hebdo','Chaque semaine'],
+    ['bihebdo','Aux 2 semaines'],
+    ['mensuel','Chaque mois'],
+    ['bimensuel','Aux 2 mois'],
+    ['trimestriel','Aux 3 mois'],
+    ['annuel','Une fois par an'],
+  ];
   const wsRef = XLSX.utils.aoa_to_sheet(ref_data);
   wsRef['!cols'] = [{wch:20},{wch:22}];
   XLSX.utils.book_append_sheet(wb, wsRef, 'Référence');
 
-  XLSX.writeFile(wb, 'budget_personnel.xlsx');
-  showToast(`Exporté — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
+  XLSX.writeFile(wb, 'budget_depenses.xlsx');
+  showToast(depenses.length===0 ? 'Modèle vide exporté (3 onglets)' : `${depenses.length} dépense(s) exportée(s)`);
 }
 
 // ── EXCEL IMPORT ──
@@ -747,82 +636,66 @@ function previewImport(event) {
     try {
       const wb=XLSX.read(e.target.result,{type:'binary'});
 
-      // Catégories
-      let newCats=null;
-      const catSheet=wb.Sheets['Catégories']||wb.Sheets['Categories'];
+      // ── Lire les catégories si l'onglet existe ──
+      let newCats = null;
+      const catSheet = wb.Sheets['Catégories'] || wb.Sheets['Categories'];
       if (catSheet) {
-        const catRows=XLSX.utils.sheet_to_json(catSheet,{header:1,defval:''});
-        if (catRows.length>1) {
-          const hdr=catRows[0].map(h=>String(h).toLowerCase().trim());
-          const iC=hdr.indexOf('categorie');
-          if (iC!==-1) {
-            const parsed=catRows.slice(1).map(r=>String(r[iC]||'').trim()).filter(c=>c&&c!=='Autre');
-            if (parsed.length>0) newCats=[...parsed,'Autre'];
+        const catRows = XLSX.utils.sheet_to_json(catSheet, {header:1, defval:''});
+        if (catRows.length > 1) {
+          const hdr = catRows[0].map(h=>String(h).toLowerCase().trim());
+          const iCat = hdr.indexOf('categorie');
+          if (iCat !== -1) {
+            const parsed = catRows.slice(1)
+              .map(r => String(r[iCat]||'').trim())
+              .filter(c => c && c !== 'Autre');
+            if (parsed.length > 0) newCats = [...parsed, 'Autre'];
           }
         }
       }
 
-      // Dépenses
-      const wsDep=wb.Sheets['Dépenses']||wb.Sheets[wb.SheetNames[0]];
-      const depRows=XLSX.utils.sheet_to_json(wsDep,{header:1,defval:''});
+      // ── Lire les dépenses ──
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if (rows.length < 2) { showToast('Onglet Dépenses vide.','error'); return; }
+      const headers=rows[0].map(h=>String(h).toLowerCase().trim());
+      const iDesc=headers.indexOf('description'), iMont=headers.indexOf('montant');
+      const iDate=headers.indexOf('date'), iFreq=headers.indexOf('frequence');
+      const iCatD=headers.indexOf('categorie'), iId=headers.indexOf('id');
+      if (iDesc===-1||iMont===-1||iDate===-1||iFreq===-1||iCatD===-1) {
+        showToast('Colonnes manquantes dans Dépenses.','error');
+        document.getElementById('import-file').value=''; return;
+      }
       const valid=[], errors=[];
-      if (depRows.length>1) {
-        const hdr=depRows[0].map(h=>String(h).toLowerCase().trim());
-        const iDesc=hdr.indexOf('description'),iMont=hdr.indexOf('montant'),iDate=hdr.indexOf('date'),iFreq=hdr.indexOf('frequence'),iCatD=hdr.indexOf('categorie'),iId=hdr.indexOf('id');
-        if (iDesc!==-1&&iMont!==-1&&iDate!==-1&&iFreq!==-1) {
-          depRows.slice(1).forEach((row,idx)=>{
-            if (!row[iDesc]&&!row[iMont]) return;
-            const desc=String(row[iDesc]||'').trim();
-            const montant=parseFloat(row[iMont]);
-            let date=String(row[iDate]||'').trim();
-            const freq=String(row[iFreq]||'').toLowerCase().trim();
-            const cat=iCatD!==-1?String(row[iCatD]||'').trim():'Autre';
-            const existingId=iId!==-1?parseInt(row[iId]):null;
-            if (typeof row[iDate]==='number'){const d=XLSX.SSF.parse_date_code(row[iDate]);date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
-            const normFreq=FREQ_MAP[freq];
-            if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errors.push(`Ligne ${idx+2}`);
-            else valid.push({id:existingId,desc,montant,date,freq:normFreq,cat:cat||'Autre'});
-          });
-        }
-      }
+      rows.slice(1).forEach((row,idx) => {
+        if (!row[iDesc]&&!row[iMont]) return;
+        const desc=String(row[iDesc]||'').trim();
+        const montant=parseFloat(row[iMont]);
+        let date=String(row[iDate]||'').trim();
+        const freq=String(row[iFreq]||'').toLowerCase().trim();
+        const cat=String(row[iCatD]||'').trim();
+        const existingId=iId!==-1?parseInt(row[iId]):null;
+        if (typeof row[iDate]==='number'){const d=XLSX.SSF.parse_date_code(row[iDate]);date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
+        const normFreq=FREQ_MAP[freq];
+        if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errors.push(`Ligne ${idx+2}`);
+        else valid.push({id:existingId,desc,montant,date,freq:normFreq,cat:cat||'Autre'});
+      });
 
-      // Revenus
-      const validRev=[], errorsRev=[];
-      const wsRev=wb.Sheets['Revenus'];
-      if (wsRev) {
-        const revRows=XLSX.utils.sheet_to_json(wsRev,{header:1,defval:''});
-        if (revRows.length>1) {
-          const hdr=revRows[0].map(h=>String(h).toLowerCase().trim());
-          const iDesc=hdr.indexOf('description'),iMont=hdr.indexOf('montant'),iDate=hdr.indexOf('date'),iFreq=hdr.indexOf('frequence'),iId=hdr.indexOf('id');
-          if (iDesc!==-1&&iMont!==-1&&iDate!==-1&&iFreq!==-1) {
-            revRows.slice(1).forEach((row,idx)=>{
-              if (!row[iDesc]&&!row[iMont]) return;
-              const desc=String(row[iDesc]||'').trim();
-              const montant=parseFloat(row[iMont]);
-              let date=String(row[iDate]||'').trim();
-              const freq=String(row[iFreq]||'').toLowerCase().trim();
-              const existingId=iId!==-1?parseInt(row[iId]):null;
-              if (typeof row[iDate]==='number'){const d=XLSX.SSF.parse_date_code(row[iDate]);date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
-              const normFreq=FREQ_MAP[freq];
-              if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errorsRev.push(`Ligne ${idx+2}`);
-              else validRev.push({id:existingId,desc,montant,date,freq:normFreq});
-            });
-          }
-        }
-      }
+      if (valid.length===0&&!newCats) { showToast('Aucune donnée valide trouvée.','error'); return; }
+      importPreviewData={valid,errors,newCats};
 
-      if (!valid.length&&!validRev.length&&!newCats) { showToast('Aucune donnée valide trouvée.','error'); return; }
-      importPreviewData={valid,errors,newCats,validRev,errorsRev};
-
-      const catMsg=newCats?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories : ${newCats.filter(c=>c!=='Autre').join(', ')}</p>`:'';
-      const depMsg=valid.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${valid.length} dépense(s) à importer${errors.length?' · '+errors.length+' ignorée(s)':''}</p>`:'';
-      const revMsg=validRev.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${validRev.length} revenu(s) à importer${errorsRev.length?' · '+errorsRev.length+' ignoré(s)':''}</p>`:'';
+      // Calculer les orphelines par rapport aux nouvelles cats (ou actuelles si pas de changement)
+      const catsApres = newCats || getCategories();
+      const orphans = valid.filter(r => !catsApres.includes(r.cat));
+      const catMsg = newCats ? `<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories mises à jour : ${newCats.filter(c=>c!=='Autre').join(', ')}</p>` : '';
+      const orphanHtml = orphans.length ? `<p style="font-size:12px;color:var(--amber);margin-top:4px;">${orphans.length} dépense(s) avec catégorie inconnue — à corriger après import.</p>` : '';
+      const errHtml = errors.length ? `<p style="font-size:12px;color:var(--red);margin-top:4px;">${errors.length} ligne(s) ignorée(s) : ${errors.join(', ')}</p>` : '';
 
       document.getElementById('import-preview-zone').innerHTML=`
         <div style="margin-top:1rem;">
           <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 16px;">
-            <p style="font-size:14px;font-weight:500;margin-bottom:4px;">Aperçu de l'import</p>
-            ${catMsg}${depMsg}${revMsg}
+            <p style="font-size:14px;font-weight:500;margin-bottom:4px;">${valid.length} dépense(s) prête(s) à importer</p>
+            <p style="font-size:12px;color:var(--text2);">Les dépenses avec un ID existant seront mises à jour. Les nouvelles seront ajoutées.</p>
+            ${catMsg}${orphanHtml}${errHtml}
           </div>
           <div class="preview-actions">
             <button class="btn btn-blue" onclick="confirmerImport()">Confirmer l'import</button>
@@ -836,24 +709,23 @@ function previewImport(event) {
 
 function confirmerImport() {
   if (!importPreviewData) return;
-  if (importPreviewData.newCats) { saveCategories(importPreviewData.newCats); refreshCatSelects(); }
-  let dAdded=0,dUpdated=0,rAdded=0,rUpdated=0;
-  (importPreviewData.valid||[]).forEach(row=>{
-    const ex=row.id?depenses.find(d=>d.id===row.id):null;
-    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat});dUpdated++;}
-    else{depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat});dAdded++;}
-  });
-  (importPreviewData.validRev||[]).forEach(row=>{
-    const ex=row.id?revenus.find(r=>r.id===row.id):null;
-    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq});rUpdated++;}
-    else{revenus.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq});rAdded++;}
+  // Appliquer les catégories si présentes
+  if (importPreviewData.newCats) {
+    saveCategories(importPreviewData.newCats);
+    refreshCatSelects();
+  }
+  let added=0, updated=0;
+  importPreviewData.valid.forEach(row => {
+    const existing=row.id?depenses.find(d=>d.id===row.id):null;
+    if (existing) { Object.assign(existing,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat}); updated++; }
+    else { depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat}); added++; }
   });
   importPreviewData=null;
   document.getElementById('import-preview-zone').innerHTML='';
   document.getElementById('import-file').value='';
-  renderDepenses(); renderRevenus(); updateDashboard();
-  sauvegarderTout();
-  showToast(`Import : dép. ${dAdded}+${dUpdated}, rev. ${rAdded}+${rUpdated}`);
+  renderDepenses(); updateDashboard();
+  sauvegarderDepenses();
+  showToast(`Import : ${added} ajout(s), ${updated} mise(s) à jour`);
 }
 
 function annulerImport() {
@@ -864,19 +736,19 @@ function annulerImport() {
 }
 
 // ── CALCULS ──
-function getOccurrences(item,from,to) {
+function getOccurrences(dep,from,to) {
   const fromDate=new Date(from+'T00:00:00'),toDate=new Date(to+'T00:00:00');
-  let occ=[],current=new Date(item.date+'T00:00:00'),safety=0;
-  if (item.freq==='unique'){if(current>=fromDate&&current<=toDate)occ.push({date:item.date,item});return occ;}
+  let occ=[],current=new Date(cleanDate(dep.date)+'T00:00:00'),safety=0;
+  if (dep.freq==='unique'){if(current>=fromDate&&current<=toDate)occ.push({date:dep.date,dep});return occ;}
   while(current<=toDate&&safety<500){
     safety++;
-    if(current>=fromDate)occ.push({date:current.toISOString().slice(0,10),item});
-    if(item.freq==='hebdo')current=addDays(current,7);
-    else if(item.freq==='bihebdo')current=addDays(current,14);
-    else if(item.freq==='mensuel')current=addMonths(current,1);
-    else if(item.freq==='bimensuel')current=addMonths(current,2);
-    else if(item.freq==='trimestriel')current=addMonths(current,3);
-    else if(item.freq==='annuel')current=addMonths(current,12);
+    if(current>=fromDate)occ.push({date:current.toISOString().slice(0,10),dep});
+    if(dep.freq==='hebdo')current=addDays(current,7);
+    else if(dep.freq==='bihebdo')current=addDays(current,14);
+    else if(dep.freq==='mensuel')current=addMonths(current,1);
+    else if(dep.freq==='bimensuel')current=addMonths(current,2);
+    else if(dep.freq==='trimestriel')current=addMonths(current,3);
+    else if(dep.freq==='annuel')current=addMonths(current,12);
     else break;
   }
   return occ;
@@ -891,51 +763,20 @@ function updateDashboard() {
   const firstDay=t.slice(0,8)+'01';
   const lastDay=t.slice(0,8)+String(new Date(parseInt(t.slice(0,4)),parseInt(t.slice(5,7)),0).getDate()).padStart(2,'0');
   const end30=addDaysStr(t,30);
-  let tm=0,t30=0,rm=0,r30=0;
+  let tm=0,t30=0;
   depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,t,end30).forEach(()=>t30+=d.montant);});
-  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,t,end30).forEach(()=>r30+=r.montant);});
   document.getElementById('m-mois').textContent='-$'+tm.toFixed(2);
   document.getElementById('m-30j').textContent='-$'+t30.toFixed(2);
-  document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
-  document.getElementById('m-rev-30j').textContent='+$'+r30.toFixed(2);
-
-  // Fusionner dépenses + revenus avec signe
   let all=[];
-  depenses.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revenus.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  depenses.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push(o)));
   all.sort((a,b)=>a.date.localeCompare(b.date));
-
   const liste=document.getElementById('prochaines-list');
-  if(!all.length){liste.innerHTML='<div class="empty-state">Aucune transaction dans les 30 prochains jours</div>';return;}
-
-  const hasSolde = si !== null;
-  let soldeCourant = si || 0;
-
-  const enTete = hasSolde
-    ? `<div style="display:grid;grid-template-columns:100px 1fr 100px 110px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
-        <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span><span style="text-align:right;">Solde après</span>
-      </div>`
-    : `<div style="display:grid;grid-template-columns:100px 1fr 100px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
-        <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span>
-      </div>`;
-
-  const lignes = all.map(o=>{
-    soldeCourant += o.montant;
-    const isRev = o.montant >= 0;
-    const montantStr = `<span style="text-align:right;font-weight:500;color:${isRev?'var(--green)':'var(--red)'};">${isRev?'+':'-'}$${Math.abs(o.montant).toFixed(2)}</span>`;
-    const soldeStr = hasSolde
-      ? `<span style="text-align:right;font-weight:500;color:${soldeCourant>=0?'var(--green)':'var(--red)'};">$${soldeCourant.toFixed(2)}</span>`
-      : '';
-    const grid = hasSolde ? 'grid-template-columns:100px 1fr 100px 110px' : 'grid-template-columns:100px 1fr 100px';
-    return `<div style="display:grid;${grid};gap:8px;padding:9px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-      <span style="color:var(--text2);">${formatDate(o.date)}</span>
-      <span>${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
-      ${montantStr}
-      ${soldeStr}
-    </div>`;
-  });
-
-  liste.innerHTML = enTete + lignes.join('');
+  if(!all.length){liste.innerHTML='<div class="empty-state">Aucune échéance dans les 30 prochains jours</div>';return;}
+  liste.innerHTML=all.slice(0,10).map(o=>`<div class="solde-entry">
+    <span class="solde-date">${formatDate(o.date)}</span>
+    <span class="solde-desc">${o.dep.desc} <span class="freq-tag">${freqLabel(o.dep.freq)}</span></span>
+    <span class="solde-montant negative">-$${o.dep.montant.toFixed(2)}</span>
+  </div>`).join('');
 }
 
 function calculerSoldeFutur() {
@@ -945,52 +786,20 @@ function calculerSoldeFutur() {
   if(isNaN(si)||!dc){el.innerHTML='';return;}
   const t=today();
   if(dc<t){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Choisissez une date dans le futur.</p>';return;}
-
   let all=[];
-  depenses.forEach(d=>getOccurrences(d,t,dc).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq})));
-  revenus.forEach(r=>getOccurrences(r,t,dc).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq})));
+  depenses.forEach(d=>getOccurrences(d,t,dc).forEach(o=>all.push(o)));
   all.sort((a,b)=>a.date.localeCompare(b.date));
-
   let solde=si;
-  const totalDep=all.filter(o=>o.montant<0).reduce((s,o)=>s+Math.abs(o.montant),0);
-  const totalRev=all.filter(o=>o.montant>0).reduce((s,o)=>s+o.montant,0);
-
-  // En-tête du tableau
-  let html=`<div style="display:grid;grid-template-columns:100px 1fr 100px 110px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
-    <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span><span style="text-align:right;">Solde après</span>
-  </div>`;
-
-  // Ligne de départ
-  html+=`<div style="display:grid;grid-template-columns:100px 1fr 100px 110px;gap:8px;padding:9px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-    <span style="color:var(--text2);">${formatDate(t)}</span>
-    <span style="font-weight:500;">Solde de départ</span>
-    <span style="text-align:right;"></span>
-    <span style="text-align:right;font-weight:500;color:${si>=0?'var(--green)':'var(--red)'};">$${si.toFixed(2)}</span>
-  </div>`;
-
-  // Lignes des transactions
-  all.forEach(o=>{
-    solde+=o.montant;
-    const isRev=o.montant>=0;
-    html+=`<div style="display:grid;grid-template-columns:100px 1fr 100px 110px;gap:8px;padding:9px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-      <span style="color:var(--text2);">${formatDate(o.date)}</span>
-      <span>${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
-      <span style="text-align:right;font-weight:500;color:${isRev?'var(--green)':'var(--red)'};">${isRev?'+':'-'}$${Math.abs(o.montant).toFixed(2)}</span>
-      <span style="text-align:right;font-weight:500;color:${solde>=0?'var(--green)':'var(--red)'};">$${solde.toFixed(2)}</span>
-    </div>`;
-  });
-
-  // Résumé final
+  let html='<div style="margin-bottom:1rem;">';
+  html+=`<div class="solde-entry"><span class="solde-date">${formatDate(t)}</span><span class="solde-desc" style="font-weight:500;">Solde de départ</span><span class="solde-montant positive">$${si.toFixed(2)}</span></div>`;
+  all.forEach(o=>{solde-=o.dep.montant;html+=`<div class="solde-entry"><span class="solde-date">${formatDate(o.date)}</span><span class="solde-desc">${o.dep.desc}</span><span class="solde-montant negative">-$${o.dep.montant.toFixed(2)}</span></div>`;});
+  html+='</div>';
   const fc=solde>=0?'var(--green)':'var(--red)';
-  html+=`<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:1rem;display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+  html+=`<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:1rem;display:flex;justify-content:space-between;align-items:center;">
     <span style="font-size:14px;font-weight:500;">Solde estimé au ${formatDate(dc)}</span>
     <span style="font-size:20px;font-weight:500;color:${fc};">$${solde.toFixed(2)}</span>
   </div>`;
-  html+=`<div style="display:flex;gap:1rem;margin-top:8px;font-size:12px;color:var(--text2);">
-    <span>Revenus prévus : <strong style="color:var(--green);">+$${totalRev.toFixed(2)}</strong></span>
-    <span>Dépenses prévues : <strong style="color:var(--red);">-$${totalDep.toFixed(2)}</strong></span>
-    <span>${all.length} transaction(s)</span>
-  </div>`;
+  html+=`<p style="font-size:12px;color:var(--text2);margin-top:8px;">Total des dépenses prévues : $${(si-solde).toFixed(2)} sur ${all.length} transaction(s)</p>`;
   el.innerHTML=html;
 }
 
