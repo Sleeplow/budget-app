@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Personnel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeede9;
+    --text: #1a1a1a; --text2: #6b6b6b; --text3: #9a9a9a;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 10px; --radius-sm: 7px;
+    --green: #1D9E75; --blue: #185FA5; --red: #E24B4A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
+      --text: #f2f2f7; --text2: #aeaeb2; --text3: #636366;
+      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .app { max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 1.5rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); }
+  .tab { padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: var(--text); border-bottom: 2px solid var(--text); font-weight: 500; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 1rem; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+  .positive { color: var(--green); } .negative { color: var(--red); }
+  .metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 1rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: var(--text2); }
+  input, select { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 10px; font-size: 14px; background: var(--bg); color: var(--text); width: 100%; }
+  .btn { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 16px; font-size: 14px; cursor: pointer; background: var(--bg); color: var(--text); display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-save { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-cancel { background: none; color: var(--text2); border-color: var(--border); }
+  .btn-icon { height: 28px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); }
+  .btn-icon.danger { color: var(--red); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text2); padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
+  td { padding: 8px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.editing-row td { background: var(--bg2); }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; display: inline-block; }
+  .badge-recurrent { background: #E6F1FB; color: #185FA5; }
+  .badge-unique { background: #EAF3DE; color: #3B6D11; }
+  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 10px; color: var(--text); }
+  .solde-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .solde-entry:last-child { border-bottom: none; }
+  .solde-date { color: var(--text2); min-width: 100px; }
+  .solde-desc { flex: 1; padding: 0 12px; }
+  .solde-montant { font-weight: 500; min-width: 90px; text-align: right; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .empty-state { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
+  .freq-tag { font-size: 11px; color: var(--text3); }
+  .inline-edit { height: 30px; font-size: 13px; padding: 0 6px; min-width: 0; }
+  .edit-actions { display: flex; gap: 6px; }
+  .divider { width: 1px; height: 24px; background: var(--border); }
+  .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; padding: 8px 12px; background: var(--bg2); border-radius: var(--radius-sm); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .sync-dot.ok { background: var(--green); }
+  .sync-dot.error { background: var(--red); }
+  .sync-dot.loading { background: #EF9F27; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.success { background: var(--green); color: #fff; }
+  .toast.error { background: var(--red); color: #fff; }
+  .toast.info { background: var(--blue); color: #fff; }
+  .preview-actions { display: flex; gap: 8px; margin-top: 10px; }
+  @media (max-width: 600px) {
+    .form-row, .form-row.three { grid-template-columns: 1fr; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .metrics-grid .metric:last-child { grid-column: span 2; }
+    table { font-size: 12px; }
+    td, th { padding: 6px 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Budget Personnel</h1>
+
+  <div class="sync-bar">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-status">Connexion à Google Sheets...</span>
+    <span style="flex:1"></span>
+    <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="syncNow()">Synchroniser</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
+    <button class="tab" onclick="showTab('depenses', this)">Dépenses</button>
+    <button class="tab" onclick="showTab('solde-futur', this)">Solde futur</button>
+  </div>
+
+  <!-- TABLEAU DE BORD -->
+  <div id="tab-tableau-bord" class="section active">
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="section-title">Solde actuel du compte</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="number" id="solde-compte" placeholder="Ex: 2500.00" step="0.01" style="max-width:200px;" oninput="updateDashboard()">
+        <span style="font-size:13px;color:var(--text2);">$</span>
+      </div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric"><div class="metric-label">Solde actuel</div><div class="metric-value" id="m-solde">—</div></div>
+      <div class="metric"><div class="metric-label">Dépenses ce mois</div><div class="metric-value negative" id="m-mois">$0.00</div></div>
+      <div class="metric"><div class="metric-label">30 prochains jours</div><div class="metric-value negative" id="m-30j">$0.00</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Prochaines échéances</div>
+      <div id="prochaines-list"><div class="empty-state">Aucune dépense ajoutée</div></div>
+    </div>
+  </div>
+
+  <!-- DÉPENSES -->
+  <div id="tab-depenses" class="section">
+    <div class="card">
+      <div class="section-title">Ajouter une dépense</div>
+      <div class="form-row">
+        <div class="form-group"><label>Description</label><input type="text" id="dep-desc" placeholder="Ex: Loyer, Netflix..."></div>
+        <div class="form-group"><label>Montant ($)</label><input type="number" id="dep-montant" placeholder="0.00" step="0.01" min="0"></div>
+      </div>
+      <div class="form-row three">
+        <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="dep-date"></div>
+        <div class="form-group"><label>Fréquence</label>
+          <select id="dep-freq">
+            <option value="unique">Unique</option>
+            <option value="hebdo">Hebdomadaire</option>
+            <option value="bihebdo">Aux 2 semaines</option>
+            <option value="mensuel" selected>Mensuel</option>
+            <option value="bimensuel">Aux 2 mois</option>
+            <option value="trimestriel">Trimestriel</option>
+            <option value="annuel">Annuel</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Catégorie</label>
+          <select id="dep-cat">
+            <option value="Logement">Logement</option>
+            <option value="Transport">Transport</option>
+            <option value="Alimentation">Alimentation</option>
+            <option value="Abonnement">Abonnement</option>
+            <option value="Assurance">Assurance</option>
+            <option value="Épargne">Épargne</option>
+            <option value="Loisirs">Loisirs</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="ajouterDepense()">+ Ajouter</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div class="section-title" style="margin-bottom:0;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-green" onclick="exporterExcel()">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 13h12M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Exporter Excel
+          </button>
+          <div class="divider"></div>
+          <label class="btn btn-blue" style="cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 13h12M8 11V3M5 6l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importer Excel
+            <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none;" onchange="previewImport(event)">
+          </label>
+        </div>
+      </div>
+      <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
+      <div id="import-preview-zone"></div>
+    </div>
+  </div>
+
+  <!-- SOLDE FUTUR -->
+  <div id="tab-solde-futur" class="section">
+    <div class="card">
+      <div class="section-title">Calculer le solde à une date précise</div>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap;">
+        <div class="form-group" style="max-width:200px;"><label>Solde actuel ($)</label><input type="number" id="sf-solde" placeholder="Ex: 2500.00" step="0.01" oninput="calculerSoldeFutur()"></div>
+        <div class="form-group" style="max-width:200px;"><label>Date cible</label><input type="date" id="sf-date" oninput="calculerSoldeFutur()"></div>
+      </div>
+      <div id="sf-resultat"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ============================================================
+// CONFIGURATION — REMPLACE CETTE VALEUR AVANT D'UPLOADER
+// ============================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFNsUcTmaGqvh0R8YBovLbNjuzeVLODPectgUOS3JndYXORFgLVtGLI0OnTXCXmhfE/exec';
+// Exemple: 'https://script.google.com/macros/s/ABCDEF.../exec'
+// ============================================================
+
+let depenses = [];
+let editingId = null;
+let importPreviewData = null;
+let isSaving = false;
+
+const FREQ_LABELS = { unique:'Unique', hebdo:'Hebdo.', bihebdo:'Aux 2 sem.', mensuel:'Mensuel', bimensuel:'Aux 2 mois', trimestriel:'Trimestriel', annuel:'Annuel' };
+const FREQ_MAP = {};
+Object.entries(FREQ_LABELS).forEach(([k,v]) => { FREQ_MAP[k]=k; FREQ_MAP[v.toLowerCase()]=k; });
+const CATS = ['Logement','Transport','Alimentation','Abonnement','Assurance','Épargne','Loisirs','Autre'];
+const FREQS = ['unique','hebdo','bihebdo','mensuel','bimensuel','trimestriel','annuel'];
+
+function today() { return new Date().toISOString().slice(0,10); }
+function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
+function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
+function freqLabel(f) { return FREQ_LABELS[f]||f; }
+
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const status = document.getElementById('sync-status');
+  dot.className = 'sync-dot ' + state;
+  status.textContent = msg;
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+// ---- GOOGLE SHEETS SYNC ----
+async function chargerDepenses() {
+  setSyncStatus('loading', 'Chargement depuis Google Sheets...');
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=getAll', { redirect: 'follow' });
+    const data = await resp.json();
+    depenses = data.map(d => ({
+      id: d.id || Date.now() + Math.random(),
+      desc: d.description || '',
+      montant: parseFloat(d.montant) || 0,
+      date: d.date || today(),
+      freq: d.frequence || 'mensuel',
+      cat: d.categorie || 'Autre'
+    }));
+    setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s)`);
+    renderDepenses();
+    updateDashboard();
+  } catch(e) {
+    setSyncStatus('error', 'Erreur de connexion à Google Sheets');
+    showToast('Impossible de joindre Google Sheets', 'error');
+    depenses = [];
+    renderDepenses();
+  }
+}
+
+async function sauvegarderDepenses() {
+  if (isSaving) return;
+  isSaving = true;
+  setSyncStatus('loading', 'Sauvegarde en cours...');
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save', depenses: depenses }),
+      redirect: 'follow'
+    });
+    setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s)`);
+    showToast('Sauvegardé dans Google Sheets');
+  } catch(e) {
+    setSyncStatus('error', 'Erreur lors de la sauvegarde');
+    showToast('Erreur de sauvegarde', 'error');
+  }
+  isSaving = false;
+}
+
+async function syncNow() {
+  await chargerDepenses();
+  showToast('Données rechargées', 'info');
+}
+
+// ---- UI ----
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id==='tableau-bord') updateDashboard();
+  if (id==='solde-futur') calculerSoldeFutur();
+  if (id==='depenses') { editingId=null; renderDepenses(); }
+}
+
+function ajouterDepense() {
+  const desc = document.getElementById('dep-desc').value.trim();
+  const montant = parseFloat(document.getElementById('dep-montant').value);
+  const date = document.getElementById('dep-date').value;
+  const freq = document.getElementById('dep-freq').value;
+  const cat = document.getElementById('dep-cat').value;
+  if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Veuillez remplir tous les champs.','error'); return; }
+  depenses.push({ id: Date.now(), desc, montant, date, freq, cat });
+  document.getElementById('dep-desc').value='';
+  document.getElementById('dep-montant').value='';
+  document.getElementById('dep-date').value=today();
+  renderDepenses(); updateDashboard();
+  sauvegarderDepenses();
+}
+
+function startEdit(id) { editingId=id; renderDepenses(); }
+function cancelEdit() { editingId=null; renderDepenses(); }
+
+function saveEdit(id) {
+  const desc = document.getElementById('edit-desc-'+id).value.trim();
+  const montant = parseFloat(document.getElementById('edit-montant-'+id).value);
+  const date = document.getElementById('edit-date-'+id).value;
+  const freq = document.getElementById('edit-freq-'+id).value;
+  const cat = document.getElementById('edit-cat-'+id).value;
+  if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
+  const idx = depenses.findIndex(d => d.id===id);
+  if (idx!==-1) depenses[idx] = { id, desc, montant, date, freq, cat };
+  editingId=null; renderDepenses(); updateDashboard();
+  sauvegarderDepenses();
+}
+
+function supprimerDepense(id) {
+  if (!confirm('Supprimer cette dépense ?')) return;
+  depenses = depenses.filter(d => d.id!==id);
+  if (editingId===id) editingId=null;
+  renderDepenses(); updateDashboard();
+  sauvegarderDepenses();
+}
+
+function renderDepenses() {
+  document.getElementById('dep-count').textContent = depenses.length;
+  const el = document.getElementById('dep-list-container');
+  if (depenses.length===0) { el.innerHTML='<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
+  const sorted = [...depenses].sort((a,b) => a.date.localeCompare(b.date));
+  const rows = sorted.map(d => {
+    if (editingId===d.id) {
+      const fo = FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
+      const co = CATS.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
+      return `<tr class="editing-row">
+        <td><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc}" style="width:100%;"></td>
+        <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:90px;"></td>
+        <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:145px;"></td>
+        <td><select class="inline-edit" id="edit-freq-${d.id}" style="width:125px;">${fo}</select></td>
+        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:120px;">${co}</select></td>
+        <td><div class="edit-actions">
+          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
+          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEdit()">Annuler</button>
+        </div></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${d.desc}</td>
+      <td style="font-weight:500;">$${d.montant.toFixed(2)}</td>
+      <td>${formatDate(d.date)}</td>
+      <td><span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span></td>
+      <td style="color:var(--text2);">${d.cat}</td>
+      <td><div class="edit-actions">
+        <button class="btn-icon" onclick="startEdit(${d.id})">Modifier</button>
+        <button class="btn-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Catégorie</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function exporterExcel() {
+  if (!window.XLSX) { showToast('XLSX pas encore chargé.','error'); return; }
+  const ws_data = [['id','description','montant','date','frequence','categorie']];
+  depenses.forEach(d => ws_data.push([d.id, d.desc, d.montant, d.date, d.freq, d.cat]));
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16},{wch:16}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dépenses');
+  const ws2 = XLSX.utils.aoa_to_sheet([['Fréquences valides','Catégories valides'],...FREQS.map((f,i)=>[f,CATS[i]||''])]);
+  ws2['!cols'] = [{wch:18},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Référence');
+  XLSX.writeFile(wb, 'budget_depenses.xlsx');
+  showToast(depenses.length===0 ? 'Modèle vide exporté' : `${depenses.length} dépense(s) exportée(s)`);
+}
+
+function previewImport(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      if (rows.length < 2) { showToast('Fichier vide.','error'); return; }
+      const headers = rows[0].map(h=>String(h).toLowerCase().trim());
+      const iDesc=headers.indexOf('description'), iMont=headers.indexOf('montant');
+      const iDate=headers.indexOf('date'), iFreq=headers.indexOf('frequence');
+      const iCat=headers.indexOf('categorie'), iId=headers.indexOf('id');
+      if (iDesc===-1||iMont===-1||iDate===-1||iFreq===-1||iCat===-1) {
+        showToast('Colonnes manquantes. Utilisez le fichier exporté comme modèle.','error');
+        document.getElementById('import-file').value=''; return;
+      }
+      const valid=[], errors=[];
+      rows.slice(1).forEach((row,idx) => {
+        if (!row[iDesc]&&!row[iMont]) return;
+        const desc=String(row[iDesc]||'').trim();
+        const montant=parseFloat(row[iMont]);
+        let date=String(row[iDate]||'').trim();
+        const freq=String(row[iFreq]||'').toLowerCase().trim();
+        const cat=String(row[iCat]||'Autre').trim();
+        const existingId=iId!==-1?parseInt(row[iId]):null;
+        if (typeof row[iDate]==='number') { const d=XLSX.SSF.parse_date_code(row[iDate]); date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; }
+        const normFreq=FREQ_MAP[freq];
+        if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errors.push(`Ligne ${idx+2}`);
+        else valid.push({ id:existingId, desc, montant, date, freq:normFreq, cat:CATS.includes(cat)?cat:'Autre' });
+      });
+      if (valid.length===0) { showToast('Aucune ligne valide.','error'); return; }
+      importPreviewData={valid,errors};
+      const errHtml=errors.length?`<p style="font-size:12px;color:var(--red);margin-top:6px;">${errors.length} ligne(s) ignorée(s) : ${errors.join(', ')}</p>`:'';
+      document.getElementById('import-preview-zone').innerHTML=`<div style="margin-top:1rem;"><div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 16px;"><p style="font-size:14px;font-weight:500;margin-bottom:4px;">${valid.length} dépense(s) prête(s) à importer</p><p style="font-size:12px;color:var(--text2);">Les dépenses avec un ID existant seront mises à jour. Les nouvelles seront ajoutées.</p>${errHtml}</div><div class="preview-actions"><button class="btn btn-blue" onclick="confirmerImport()">Confirmer l'import</button><button class="btn" onclick="annulerImport()">Annuler</button></div></div>`;
+    } catch(err) { showToast('Erreur lecture : '+err.message,'error'); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function confirmerImport() {
+  if (!importPreviewData) return;
+  let added=0, updated=0;
+  importPreviewData.valid.forEach(row => {
+    const existing=row.id?depenses.find(d=>d.id===row.id):null;
+    if (existing) { Object.assign(existing,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat}); updated++; }
+    else { depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat}); added++; }
+  });
+  importPreviewData=null;
+  document.getElementById('import-preview-zone').innerHTML='';
+  document.getElementById('import-file').value='';
+  renderDepenses(); updateDashboard();
+  sauvegarderDepenses();
+  showToast(`Import : ${added} ajout(s), ${updated} mise(s) à jour`);
+}
+
+function annulerImport() {
+  importPreviewData=null;
+  document.getElementById('import-preview-zone').innerHTML='';
+  document.getElementById('import-file').value='';
+  showToast('Import annulé','info');
+}
+
+function getOccurrences(dep, from, to) {
+  const fromDate=new Date(from+'T00:00:00'), toDate=new Date(to+'T00:00:00');
+  let occ=[], current=new Date(dep.date+'T00:00:00'), safety=0;
+  if (dep.freq==='unique') { if(current>=fromDate&&current<=toDate) occ.push({date:dep.date,dep}); return occ; }
+  while (current<=toDate&&safety<500) {
+    safety++;
+    if (current>=fromDate) occ.push({date:current.toISOString().slice(0,10),dep});
+    if (dep.freq==='hebdo') current=addDays(current,7);
+    else if (dep.freq==='bihebdo') current=addDays(current,14);
+    else if (dep.freq==='mensuel') current=addMonths(current,1);
+    else if (dep.freq==='bimensuel') current=addMonths(current,2);
+    else if (dep.freq==='trimestriel') current=addMonths(current,3);
+    else if (dep.freq==='annuel') current=addMonths(current,12);
+    else break;
+  }
+  return occ;
+}
+
+function updateDashboard() {
+  const si=parseFloat(document.getElementById('solde-compte').value)||null;
+  const el=document.getElementById('m-solde');
+  el.textContent=si!==null?'$'+si.toFixed(2):'—';
+  el.className='metric-value'+(si!==null?(si>=0?' positive':' negative'):'');
+  const t=today();
+  const firstDay=t.slice(0,8)+'01';
+  const lastDay=t.slice(0,8)+String(new Date(parseInt(t.slice(0,4)),parseInt(t.slice(5,7)),0).getDate()).padStart(2,'0');
+  const end30=addDaysStr(t,30);
+  let tm=0, t30=0;
+  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,t,end30).forEach(()=>t30+=d.montant);});
+  document.getElementById('m-mois').textContent='-$'+tm.toFixed(2);
+  document.getElementById('m-30j').textContent='-$'+t30.toFixed(2);
+  let all=[];
+  depenses.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push(o)));
+  all.sort((a,b)=>a.date.localeCompare(b.date));
+  const liste=document.getElementById('prochaines-list');
+  if (!all.length){liste.innerHTML='<div class="empty-state">Aucune échéance dans les 30 prochains jours</div>';return;}
+  liste.innerHTML=all.slice(0,10).map(o=>`<div class="solde-entry">
+    <span class="solde-date">${formatDate(o.date)}</span>
+    <span class="solde-desc">${o.dep.desc} <span class="freq-tag">${freqLabel(o.dep.freq)}</span></span>
+    <span class="solde-montant negative">-$${o.dep.montant.toFixed(2)}</span>
+  </div>`).join('');
+}
+
+function calculerSoldeFutur() {
+  const si=parseFloat(document.getElementById('sf-solde').value);
+  const dc=document.getElementById('sf-date').value;
+  const el=document.getElementById('sf-resultat');
+  if(isNaN(si)||!dc){el.innerHTML='';return;}
+  const t=today();
+  if(dc<t){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Choisissez une date dans le futur.</p>';return;}
+  let all=[];
+  depenses.forEach(d=>getOccurrences(d,t,dc).forEach(o=>all.push(o)));
+  all.sort((a,b)=>a.date.localeCompare(b.date));
+  let solde=si;
+  let html='<div style="margin-bottom:1rem;">';
+  html+=`<div class="solde-entry"><span class="solde-date">${formatDate(t)}</span><span class="solde-desc" style="font-weight:500;">Solde de départ</span><span class="solde-montant positive">$${si.toFixed(2)}</span></div>`;
+  all.forEach(o=>{solde-=o.dep.montant;html+=`<div class="solde-entry"><span class="solde-date">${formatDate(o.date)}</span><span class="solde-desc">${o.dep.desc}</span><span class="solde-montant negative">-$${o.dep.montant.toFixed(2)}</span></div>`;});
+  html+='</div>';
+  const fc=solde>=0?'var(--green)':'var(--red)';
+  html+=`<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:1rem;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:14px;font-weight:500;">Solde estimé au ${formatDate(dc)}</span>
+    <span style="font-size:20px;font-weight:500;color:${fc};">$${solde.toFixed(2)}</span>
+  </div>`;
+  html+=`<p style="font-size:12px;color:var(--text2);margin-top:8px;">Total des dépenses prévues : $${(si-solde).toFixed(2)} sur ${all.length} transaction(s)</p>`;
+  el.innerHTML=html;
+}
+
+// Init
+document.getElementById('dep-date').value=today();
+document.getElementById('sf-date').value=addDaysStr(today(),30);
+chargerDepenses();
+</script>
+</body>
+</html>
