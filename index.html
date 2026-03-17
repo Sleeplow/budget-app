@@ -21,7 +21,7 @@
     }
   }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
-  #app { display: none; max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  #app { max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
   .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
   .app-header h1 { font-size: 22px; font-weight: 500; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1rem; overflow-y: auto; }
@@ -134,11 +134,11 @@ const DOC_REF = doc(db, 'budget', 'data');
 window._fbCharger = async function() {
   const snap = await getDoc(DOC_REF);
   if (snap.exists()) return snap.data();
-  return { depenses: [], revenus: [] };
+  return { depenses: [], revenus: [], categories: [], comptes: [] };
 };
 
-window._fbSauvegarder = async function(depenses, revenus) {
-  await setDoc(DOC_REF, { depenses, revenus });
+window._fbSauvegarder = async function(depenses, revenus, categories, comptes) {
+  await setDoc(DOC_REF, { depenses, revenus, categories, comptes });
 };
 
 window._fbReady = true;
@@ -327,7 +327,7 @@ window.dispatchEvent(new Event('fb-ready'));
     <div class="modal-section">
       <div class="modal-section-title">Danger zone</div>
       <div class="danger-zone">
-        <p>Supprimer toutes les dépenses et revenus dans Firebase. Cette action est irréversible.</p>
+        <p>Supprimer toutes les dépenses localement et dans Google Sheets. Cette action est irréversible.</p>
         <button class="btn btn-red" style="width:100%;justify-content:center;" onclick="resetApp()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           Réinitialiser toute l'app
@@ -376,6 +376,7 @@ function saveCategories(cats) {
   const withoutAutre = cats.filter(c => c !== 'Autre');
   localStorage.setItem('budget_categories', JSON.stringify([...withoutAutre, 'Autre']));
   refreshCatSelects();
+  sauvegarderTout();
 }
 
 function refreshCatSelects() {
@@ -402,6 +403,7 @@ function getComptes() {
 function saveComptes(comptes) {
   localStorage.setItem('budget_comptes', JSON.stringify(comptes));
   refreshCompteSelects();
+  sauvegarderTout();
 }
 function refreshCompteSelects() {
   const comptes = getComptes();
@@ -416,11 +418,19 @@ function isCompteValid(compte) { return getComptes().includes(compte); }
 
 // ── UTILITAIRES ──
 function today() { return new Date().toISOString().slice(0,10); }
-function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function cleanDate(s) {
+  if(!s) return today();
+  const str=String(s);
+  const m=str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if(m) return m[1];
+  return str.slice(0,10);
+}
+function formatDate(s) { if(!s) return ''; const p=cleanDate(String(s)).split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
 function freqLabel(f) { return FREQ_LABELS[f]||f; }
+function getUrl() { return localStorage.getItem('budget_api_url') || ''; }
 
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -433,13 +443,15 @@ function setSyncStatus(state, msg) {
 }
 
 // ── CONFIG ──
-
-
 function demarrerApp() {
-  document.getElementById('app').style.display='block';
-  document.getElementById('dep-date').value=today();
-  document.getElementById('rev-date').value=today();
-  document.getElementById('sf-date').value=addDaysStr(today(),30);
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.style.display='block';
+  const depDate = document.getElementById('dep-date');
+  if (depDate) depDate.value=today();
+  const revDate = document.getElementById('rev-date');
+  if (revDate) revDate.value=today();
+  const sfDate = document.getElementById('sf-date');
+  if (sfDate) sfDate.value=addDaysStr(today(),30);
   refreshCatSelects();
   refreshCompteSelects();
   chargerTout();
@@ -447,6 +459,7 @@ function demarrerApp() {
 
 // ── MODAL ──
 function ouvrirParametres() {
+  document.getElementById('param-url').value = getUrl();
   renderCatList();
   renderCompteList();
   document.getElementById('modal-params').classList.add('open');
@@ -561,7 +574,7 @@ function onDragEndC(){dragSrcC=null;document.querySelectorAll('.cat-item').forEa
 
 async function resetApp() {
   if (!confirm('Supprimer TOUTES les dépenses et tous les revenus? Irréversible.')) return;
-  if (!confirm('Dernière confirmation — effacement dans Firebase aussi.')) return;
+  if (!confirm('Dernière confirmation — effacement dans Google Sheets aussi.')) return;
   depenses=[]; revenus=[];
   fermerParametres();
   renderDepenses(); renderRevenus(); updateDashboard();
@@ -569,7 +582,7 @@ async function resetApp() {
   showToast('App réinitialisée','info');
 }
 
-// ── FIREBASE ──
+// ── GOOGLE SHEETS ──
 async function chargerTout(showMsg=false) {
   setSyncStatus('loading','Chargement depuis Firebase...');
   try {
@@ -577,16 +590,20 @@ async function chargerTout(showMsg=false) {
       await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
     }
     const data = await window._fbCharger();
-    if (Array.isArray(data.depenses)) {
-      depenses = data.depenses.map(mapDep);
-    } else {
-      depenses = [];
+    // Catégories
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      localStorage.setItem('budget_categories', JSON.stringify(data.categories));
+      refreshCatSelects();
     }
-    if (Array.isArray(data.revenus)) {
-      revenus = data.revenus.map(mapRev);
-    } else {
-      revenus = [];
+    // Comptes
+    if (Array.isArray(data.comptes) && data.comptes.length > 0) {
+      localStorage.setItem('budget_comptes', JSON.stringify(data.comptes));
+      refreshCompteSelects();
     }
+    // Dépenses
+    depenses = Array.isArray(data.depenses) ? data.depenses.map(mapDep) : [];
+    // Revenus
+    revenus = Array.isArray(data.revenus) ? data.revenus.map(mapRev) : [];
     setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     renderDepenses(); renderRevenus(); updateDashboard();
     if(showMsg) showToast('Données synchronisées !');
@@ -636,7 +653,9 @@ async function sauvegarderTout() {
       id: r.id, description: r.desc, montant: r.montant,
       date: r.date, frequence: r.freq, compte: r.compte||''
     }));
-    await window._fbSauvegarder(depData, revData);
+    const catsData = getCategories();
+    const comptesData = getComptes();
+    await window._fbSauvegarder(depData, revData, catsData, comptesData);
     setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     showToast('Sauvegardé dans Firebase');
   } catch(e) {
