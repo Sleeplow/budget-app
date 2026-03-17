@@ -118,6 +118,37 @@
     table { font-size: 12px; } td, th { padding: 6px 4px; }
   }
 </style>
+<script type="module">
+// ── FIREBASE CONFIG ──
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDIl2VJrGEOxEQNpct-oAXGa1q37A3S4a0",
+  authDomain: "budget-personnel-2fb22.firebaseapp.com",
+  projectId: "budget-personnel-2fb22",
+  storageBucket: "budget-personnel-2fb22.firebasestorage.app",
+  messagingSenderId: "91937483039",
+  appId: "1:91937483039:web:0a64d467c494716fee682a"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const DOC_REF = doc(db, 'budget', 'data');
+
+window._fbCharger = async function() {
+  const snap = await getDoc(DOC_REF);
+  if (snap.exists()) return snap.data();
+  return { depenses: [], revenus: [] };
+};
+
+window._fbSauvegarder = async function(depenses, revenus) {
+  await setDoc(DOC_REF, { depenses, revenus });
+};
+
+window._fbReady = true;
+window.dispatchEvent(new Event('fb-ready'));
+</script>
 </head>
 <body>
 
@@ -146,7 +177,7 @@
 
   <div class="sync-bar">
     <div class="sync-dot" id="sync-dot"></div>
-    <span id="sync-status">Connexion à Google Sheets...</span>
+    <span id="sync-status">Connexion à Firebase...</span>
     <span style="flex:1"></span>
     <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="syncNow()">Synchroniser</button>
   </div>
@@ -287,13 +318,9 @@
     </h2>
 
     <div class="modal-section">
-      <div class="modal-section-title">Connexion Google Sheets</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
-        <label style="font-size:12px;color:var(--text2);">URL Google Apps Script (/exec)</label>
-        <input type="text" id="param-url" placeholder="https://script.google.com/macros/s/.../exec">
-      </div>
-      <p class="modal-hint">Stockée localement sur cet appareil — jamais dans le code GitHub.</p>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="sauvegarderUrl()">Enregistrer l'URL</button>
+      <div class="modal-section-title">Connexion Firebase</div>
+      <p class="modal-hint">Les données sont sauvegardées dans Firebase (budget-personnel-2fb22). La connexion est automatique.</p>
+      <div id="modal-sync-status" style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);">Statut : <span id="modal-sync-txt">—</span></div>
     </div>
 
     <div class="modal-section">
@@ -427,18 +454,10 @@ function setSyncStatus(state, msg) {
 
 // ── CONFIG ──
 function sauvegarderConfig() {
-  const url = document.getElementById('setup-url').value.trim();
-  if (!url || !url.includes('script.google.com')) { showToast('URL invalide', 'error'); return; }
-  localStorage.setItem('budget_api_url', url);
   demarrerApp();
 }
 function sauvegarderUrl() {
-  const url = document.getElementById('param-url').value.trim();
-  if (!url || !url.includes('script.google.com')) { showToast('URL invalide', 'error'); return; }
-  localStorage.setItem('budget_api_url', url);
   fermerParametres();
-  showToast('URL mise à jour');
-  chargerTout();
 }
 function demarrerApp() {
   document.getElementById('setup-screen').style.display='none';
@@ -449,6 +468,7 @@ function demarrerApp() {
   refreshCatSelects();
   refreshCompteSelects();
   chargerTout();
+  localStorage.setItem('budget_started', '1');
 }
 
 // ── MODAL ──
@@ -577,80 +597,81 @@ async function resetApp() {
 }
 
 // ── GOOGLE SHEETS ──
-function chargerTout(showMsg=false) {
-  const url=getUrl();
-  if (!url) { setSyncStatus('error','URL non configurée'); return Promise.resolve(); }
-  setSyncStatus('loading','Chargement depuis Google Sheets...');
-  return new Promise((resolve) => {
-    const cbName = '__budgetCb_' + Date.now();
-    const script = document.createElement('script');
-    const timeout = setTimeout(() => {
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      setSyncStatus('error','Délai dépassé — vérifier l\'URL Apps Script');
-      showToast('Erreur : délai dépassé','error');
-      resolve();
-    }, 10000);
-    window[cbName] = function(data) {
-      clearTimeout(timeout);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      try {
-        if (Array.isArray(data)) {
-          depenses=data.map(mapDep); revenus=[];
-        } else {
-          depenses=(data.depenses||[]).map(mapDep);
-          revenus=(data.revenus||[]).map(mapRev);
-        }
-        setSyncStatus('ok',`Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-        renderDepenses(); renderRevenus(); updateDashboard();
-        if(showMsg) showToast('Données synchronisées !');
-      } catch(e) {
-        console.error('chargerTout parse erreur:', e);
-        setSyncStatus('error','Erreur lors du traitement des données');
-        showToast('Erreur : '+e.message,'error');
-      }
-      resolve();
-    };
-    script.src = url + '?action=getAll&callback=' + cbName;
-    script.onerror = () => {
-      clearTimeout(timeout);
-      delete window[cbName];
-      setSyncStatus('error','Impossible de joindre Google Sheets');
-      showToast('Erreur de connexion','error');
-      resolve();
-    };
-    document.head.appendChild(script);
-  });
+async function chargerTout(showMsg=false) {
+  setSyncStatus('loading','Chargement depuis Firebase...');
+  try {
+    if (!window._fbReady) {
+      await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
+    }
+    const data = await window._fbCharger();
+    if (Array.isArray(data.depenses)) {
+      depenses = data.depenses.map(mapDep);
+    } else {
+      depenses = [];
+    }
+    if (Array.isArray(data.revenus)) {
+      revenus = data.revenus.map(mapRev);
+    } else {
+      revenus = [];
+    }
+    setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
+    renderDepenses(); renderRevenus(); updateDashboard();
+    if(showMsg) showToast('Données synchronisées !');
+  } catch(e) {
+    console.error('chargerTout erreur:', e);
+    setSyncStatus('error', 'Erreur Firebase : ' + e.message);
+    showToast('Erreur : ' + e.message, 'error');
+    depenses=[]; revenus=[]; renderDepenses(); renderRevenus();
+  }
 }
 
 function mapDep(d) {
-  return { id:d.id||Date.now()+Math.random(), desc:d.description||'', montant:parseFloat(d.montant)||0, date:cleanDate(d.date||today()), freq:d.frequence||'mensuel', cat:String(d.categorie||''), compte:String(d.compte||'') };
+  return {
+    id: d.id||Date.now()+Math.random(),
+    desc: d.description||d.desc||'',
+    montant: parseFloat(d.montant)||0,
+    date: cleanDate(d.date||today()),
+    freq: d.frequence||d.freq||'mensuel',
+    cat: String(d.categorie||d.cat||''),
+    compte: String(d.compte||'')
+  };
 }
 function mapRev(r) {
-  return { id:r.id||Date.now()+Math.random(), desc:r.description||'', montant:parseFloat(r.montant)||0, date:cleanDate(r.date||today()), freq:r.frequence||'mensuel', compte:String(r.compte||'') };
+  return {
+    id: r.id||Date.now()+Math.random(),
+    desc: r.description||r.desc||'',
+    montant: parseFloat(r.montant)||0,
+    date: cleanDate(r.date||today()),
+    freq: r.frequence||r.freq||'mensuel',
+    compte: String(r.compte||'')
+  };
 }
 
 async function sauvegarderTout() {
   if (isSaving) return;
-  const url=getUrl(); if (!url) return;
-  isSaving=true;
-  setSyncStatus('loading','Sauvegarde en cours...');
+  isSaving = true;
+  setSyncStatus('loading', 'Sauvegarde en cours...');
   try {
-    // no-cors permet d'envoyer sans bloquer, on ne peut pas lire la réponse
-    await fetch(url, {
-      method:'POST',
-      mode:'no-cors',
-      body: JSON.stringify({action:'saveAll',depenses,revenus}),
-      headers:{'Content-Type':'text/plain'}
-    });
-    setSyncStatus('ok',`Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    showToast('Sauvegardé dans Google Sheets');
+    if (!window._fbReady) {
+      await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
+    }
+    const depData = depenses.map(d => ({
+      id: d.id, description: d.desc, montant: d.montant,
+      date: d.date, frequence: d.freq, categorie: d.cat, compte: d.compte||''
+    }));
+    const revData = revenus.map(r => ({
+      id: r.id, description: r.desc, montant: r.montant,
+      date: r.date, frequence: r.freq, compte: r.compte||''
+    }));
+    await window._fbSauvegarder(depData, revData);
+    setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
+    showToast('Sauvegardé dans Firebase');
   } catch(e) {
-    setSyncStatus('error','Erreur lors de la sauvegarde');
-    showToast('Erreur de sauvegarde','error');
+    console.error('sauvegarderTout erreur:', e);
+    setSyncStatus('error', 'Erreur sauvegarde : ' + e.message);
+    showToast('Erreur de sauvegarde', 'error');
   }
-  isSaving=false;
+  isSaving = false;
 }
 
 async function syncNow() { await chargerTout(true); }
@@ -1151,7 +1172,7 @@ function calculerSoldeFutur() {
 }
 
 // ── INIT ──
-if (localStorage.getItem('budget_api_url')) { demarrerApp(); }
+if (localStorage.getItem('budget_started')) { demarrerApp(); }
 else { document.getElementById('setup-screen').style.display='flex'; }
 </script>
 </body>
