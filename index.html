@@ -281,6 +281,10 @@ window.dispatchEvent(new Event('fb-ready'));
       <div id="sf-resultat"></div>
     </div>
   </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:8px 0;margin-top:0.5rem;">
+    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;"></div>
+    <span id="sync-status" style="font-size:11px;color:var(--text3);">Connexion à Firebase...</span>
+  </div>
 </div>
 
 <!-- MODAL PARAMÈTRES -->
@@ -430,8 +434,17 @@ function showToast(msg, type='success') {
   setTimeout(() => t.className = 'toast', 3500);
 }
 function setSyncStatus(state, msg) {
-  document.getElementById('sync-dot').className = 'sync-dot ' + state;
-  document.getElementById('sync-status').textContent = msg;
+  const dot = document.getElementById('sync-dot');
+  const status = document.getElementById('sync-status');
+  if (dot) {
+    dot.style.background = state==='ok'?'var(--green)':state==='error'?'var(--red)':'var(--amber)';
+    if (state==='loading') {
+      dot.style.animation = 'pulse 1s infinite';
+    } else {
+      dot.style.animation = '';
+    }
+  }
+  if (status) status.textContent = msg;
 }
 
 // ── CONFIG ──
@@ -453,8 +466,11 @@ function demarrerApp() {
 function ouvrirParametres() {
   renderCatList();
   renderCompteList();
-  const txt = document.getElementById('modal-sync-txt');
-  if (txt) txt.textContent = document.getElementById('sync-status').textContent;
+  try {
+    const txt = document.getElementById('modal-sync-txt');
+    const status = document.getElementById('sync-status');
+    if (txt && status) txt.textContent = status.textContent;
+  } catch(e) {}
   document.getElementById('modal-params').classList.add('open');
 }
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
