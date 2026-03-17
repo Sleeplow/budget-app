@@ -178,8 +178,6 @@ window.dispatchEvent(new Event('fb-ready'));
   <div class="sync-bar">
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-status">Connexion à Firebase...</span>
-    <span style="flex:1"></span>
-    <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="syncNow()">Synchroniser</button>
   </div>
 
   <div class="tabs">
@@ -435,7 +433,14 @@ function isCompteValid(compte) { return getComptes().includes(compte); }
 
 // ── UTILITAIRES ──
 function today() { return new Date().toISOString().slice(0,10); }
-function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function cleanDate(s) {
+  if(!s) return today();
+  const str=String(s);
+  const m=str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if(m) return m[1];
+  return str.slice(0,10);
+}
+function formatDate(s) { if(!s) return ''; const p=cleanDate(String(s)).split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
