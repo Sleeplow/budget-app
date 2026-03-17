@@ -96,6 +96,19 @@
   .empty-state { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
   .freq-tag { font-size: 11px; color: var(--text3); }
   .inline-edit { height: 30px; font-size: 13px; padding: 0 6px; min-width: 0; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+  .edit-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-end; justify-content: center; z-index: 200; padding: 0; }
+  @media (min-width: 600px) { .edit-modal-overlay { align-items: center; padding: 1rem; } }
+  .edit-modal-overlay.open { display: flex; }
+  .edit-modal { background: var(--bg); border-radius: var(--radius) var(--radius) 0 0; width: 100%; max-width: 500px; padding: 1.5rem; max-height: 92vh; overflow-y: auto; }
+  @media (min-width: 600px) { .edit-modal { border-radius: var(--radius); } }
+  .edit-modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1.25rem; color: var(--text); }
+  .edit-modal .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .edit-modal label { font-size: 12px; color: var(--text2); font-weight: 500; }
+  .edit-modal input, .edit-modal select { height: 42px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 12px; font-size: 15px; background: var(--bg); color: var(--text); width: 100%; }
+  .edit-modal-actions { display: flex; gap: 10px; margin-top: 1.25rem; }
+  .edit-modal-actions .btn { flex: 1; justify-content: center; height: 44px; font-size: 15px; }
+  .drag-handle { color: var(--text3); text-align: center; margin-bottom: 1rem; }
+  .drag-handle::before { content: ''; display: inline-block; width: 40px; height: 4px; background: var(--border2); border-radius: 99px; }
   .edit-actions { display: flex; gap: 6px; }
   .divider { width: 1px; height: 24px; background: var(--border); }
   .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; padding: 8px 12px; background: var(--bg2); border-radius: var(--radius-sm); }
@@ -178,6 +191,8 @@ window.dispatchEvent(new Event('fb-ready'));
   <div class="sync-bar">
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-status">Connexion à Firebase...</span>
+    <span style="flex:1"></span>
+    <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="syncNow()">Synchroniser</button>
   </div>
 
   <div class="tabs">
@@ -303,6 +318,61 @@ window.dispatchEvent(new Event('fb-ready'));
         <div class="form-group" style="max-width:200px;"><label>Date cible</label><input type="date" id="sf-date" oninput="calculerSoldeFutur()"></div>
       </div>
       <div id="sf-resultat"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ÉDITION DÉPENSE -->
+<div class="edit-modal-overlay" id="modal-edit-dep" onclick="fermerEditDepSiOverlay(event)">
+  <div class="edit-modal">
+    <div class="drag-handle"></div>
+    <h3>Modifier la dépense</h3>
+    <div class="form-group"><label>Description</label><input type="text" id="med-desc"></div>
+    <div class="form-group"><label>Montant ($)</label><input type="number" id="med-montant" step="0.01" min="0"></div>
+    <div class="form-group"><label>Date</label><input type="date" id="med-date"></div>
+    <div class="form-group"><label>Fréquence</label>
+      <select id="med-freq">
+        <option value="unique">Unique</option>
+        <option value="hebdo">Hebdomadaire</option>
+        <option value="bihebdo">Aux 2 semaines</option>
+        <option value="mensuel">Mensuel</option>
+        <option value="bimensuel">Aux 2 mois</option>
+        <option value="trimestriel">Trimestriel</option>
+        <option value="annuel">Annuel</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Catégorie</label><select id="med-cat"></select></div>
+    <div class="form-group"><label>Compte</label><select id="med-compte"></select></div>
+    <div class="edit-modal-actions">
+      <button class="btn btn-cancel" onclick="fermerEditDep()">Annuler</button>
+      <button class="btn btn-save" onclick="sauvegarderEditDep()">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ÉDITION REVENU -->
+<div class="edit-modal-overlay" id="modal-edit-rev" onclick="fermerEditRevSiOverlay(event)">
+  <div class="edit-modal">
+    <div class="drag-handle"></div>
+    <h3>Modifier le revenu</h3>
+    <div class="form-group"><label>Description</label><input type="text" id="mer-desc"></div>
+    <div class="form-group"><label>Montant ($)</label><input type="number" id="mer-montant" step="0.01" min="0"></div>
+    <div class="form-group"><label>Date</label><input type="date" id="mer-date"></div>
+    <div class="form-group"><label>Fréquence</label>
+      <select id="mer-freq">
+        <option value="unique">Unique</option>
+        <option value="hebdo">Hebdomadaire</option>
+        <option value="bihebdo">Aux 2 semaines</option>
+        <option value="mensuel">Mensuel</option>
+        <option value="bimensuel">Aux 2 mois</option>
+        <option value="trimestriel">Trimestriel</option>
+        <option value="annuel">Annuel</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Compte</label><select id="mer-compte"></select></div>
+    <div class="edit-modal-actions">
+      <button class="btn btn-cancel" onclick="fermerEditRev()">Annuler</button>
+      <button class="btn btn-save" onclick="sauvegarderEditRev()">Sauvegarder</button>
     </div>
   </div>
 </div>
@@ -433,14 +503,7 @@ function isCompteValid(compte) { return getComptes().includes(compte); }
 
 // ── UTILITAIRES ──
 function today() { return new Date().toISOString().slice(0,10); }
-function cleanDate(s) {
-  if(!s) return today();
-  const str=String(s);
-  const m=str.match(/^(\d{4}-\d{2}-\d{2})/);
-  if(m) return m[1];
-  return str.slice(0,10);
-}
-function formatDate(s) { if(!s) return ''; const p=cleanDate(String(s)).split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
+function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
@@ -478,10 +541,9 @@ function demarrerApp() {
 
 // ── MODAL ──
 function ouvrirParametres() {
+  document.getElementById('param-url').value = getUrl();
   renderCatList();
   renderCompteList();
-  const txt = document.getElementById('modal-sync-txt');
-  if (txt) txt.textContent = document.getElementById('sync-status').textContent;
   document.getElementById('modal-params').classList.add('open');
 }
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
@@ -690,8 +752,8 @@ function showTab(id, btn) {
   btn.classList.add('active');
   if (id==='tableau-bord') updateDashboard();
   if (id==='solde-futur') calculerSoldeFutur();
-  if (id==='depenses') { editingId=null; renderDepenses(); }
-  if (id==='revenus') { editingRevId=null; renderRevenus(); }
+  if (id==='depenses') { renderDepenses(); }
+  if (id==='revenus') { renderRevenus(); }
 }
 
 // ── REVENUS CRUD ──
@@ -710,20 +772,44 @@ function ajouterRevenu() {
   sauvegarderTout();
 }
 
-function startEditRev(id) { editingRevId=id; renderRevenus(); }
-function cancelEditRev() { editingRevId=null; renderRevenus(); }
+let editingRevId = null;
 
-function saveEditRev(id) {
-  const desc=document.getElementById('redit-desc-'+id).value.trim();
-  const montant=parseFloat(document.getElementById('redit-montant-'+id).value);
-  const date=document.getElementById('redit-date-'+id).value;
-  const freq=document.getElementById('redit-freq-'+id).value;
-  const compte=document.getElementById('redit-compte-'+id).value;
+function startEditRev(id) {
+  const r = revenus.find(x=>x.id===id);
+  if (!r) return;
+  editingRevId = id;
+  document.getElementById('mer-desc').value = r.desc;
+  document.getElementById('mer-montant').value = r.montant;
+  document.getElementById('mer-date').value = r.date;
+  document.getElementById('mer-freq').value = r.freq;
+  const comptes = getComptes();
+  const cpSel = document.getElementById('mer-compte');
+  cpSel.innerHTML = comptes.map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
+  document.getElementById('modal-edit-rev').classList.add('open');
+}
+
+function fermerEditRev() {
+  editingRevId = null;
+  document.getElementById('modal-edit-rev').classList.remove('open');
+}
+
+function fermerEditRevSiOverlay(e) {
+  if (e.target === document.getElementById('modal-edit-rev')) fermerEditRev();
+}
+
+function sauvegarderEditRev() {
+  const desc = document.getElementById('mer-desc').value.trim();
+  const montant = parseFloat(document.getElementById('mer-montant').value);
+  const date = document.getElementById('mer-date').value;
+  const freq = document.getElementById('mer-freq').value;
+  const compte = document.getElementById('mer-compte').value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=revenus.findIndex(r=>r.id===id);
-  if (idx!==-1) revenus[idx]={id,desc,montant,date,freq,compte};
-  editingRevId=null; renderRevenus(); updateDashboard();
+  const idx = revenus.findIndex(r=>r.id===editingRevId);
+  if (idx!==-1) revenus[idx] = {id:editingRevId,desc,montant,date,freq,compte};
+  fermerEditRev();
+  renderRevenus(); updateDashboard();
   sauvegarderTout();
+  showToast('Revenu modifié');
 }
 
 function supprimerRevenu(id) {
@@ -740,21 +826,6 @@ function renderRevenus() {
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
   const sorted=[...revenus].sort((a,b)=>a.date.localeCompare(b.date));
   const rows=sorted.map(r=>{
-    if (editingRevId===r.id) {
-      const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="redit-freq-${r.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="redit-compte-${r.id}" style="width:110px;">${coRev}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEditRev()">Annuler</button>
-        </div></td>
-      </tr>`;
-    }
     const compteRevValid = isCompteValid(r.compte);
     const compteBadgeRev = r.compte ? (compteRevValid ? `<span class="compte-badge">${r.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<tr>
@@ -788,21 +859,50 @@ function ajouterDepense() {
   sauvegarderTout();
 }
 
-function startEdit(id) { editingId=id; renderDepenses(); }
-function cancelEdit() { editingId=null; renderDepenses(); }
+let editingDepId = null;
 
-function saveEdit(id) {
-  const desc=document.getElementById('edit-desc-'+id).value.trim();
-  const montant=parseFloat(document.getElementById('edit-montant-'+id).value);
-  const date=document.getElementById('edit-date-'+id).value;
-  const freq=document.getElementById('edit-freq-'+id).value;
-  const cat=document.getElementById('edit-cat-'+id).value;
-  const compte=document.getElementById('edit-compte-'+id).value;
+function startEdit(id) {
+  const d = depenses.find(x=>x.id===id);
+  if (!d) return;
+  editingDepId = id;
+  document.getElementById('med-desc').value = d.desc;
+  document.getElementById('med-montant').value = d.montant;
+  document.getElementById('med-date').value = d.date;
+  document.getElementById('med-freq').value = d.freq;
+  // Peupler catégories
+  const cats = getCategories();
+  const catSel = document.getElementById('med-cat');
+  catSel.innerHTML = cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
+  // Peupler comptes
+  const comptes = getComptes();
+  const cpSel = document.getElementById('med-compte');
+  cpSel.innerHTML = comptes.map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
+  document.getElementById('modal-edit-dep').classList.add('open');
+}
+
+function fermerEditDep() {
+  editingDepId = null;
+  document.getElementById('modal-edit-dep').classList.remove('open');
+}
+
+function fermerEditDepSiOverlay(e) {
+  if (e.target === document.getElementById('modal-edit-dep')) fermerEditDep();
+}
+
+function sauvegarderEditDep() {
+  const desc = document.getElementById('med-desc').value.trim();
+  const montant = parseFloat(document.getElementById('med-montant').value);
+  const date = document.getElementById('med-date').value;
+  const freq = document.getElementById('med-freq').value;
+  const cat = document.getElementById('med-cat').value;
+  const compte = document.getElementById('med-compte').value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=depenses.findIndex(d=>d.id===id);
-  if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat,compte};
-  editingId=null; renderDepenses(); updateDashboard();
+  const idx = depenses.findIndex(d=>d.id===editingDepId);
+  if (idx!==-1) depenses[idx] = {id:editingDepId,desc,montant,date,freq,cat,compte};
+  fermerEditDep();
+  renderDepenses(); updateDashboard();
   sauvegarderTout();
+  showToast('Dépense modifiée');
 }
 
 function supprimerDepense(id) {
@@ -821,24 +921,6 @@ function renderDepenses() {
   const sorted=[...depenses].sort((a,b)=>a.date.localeCompare(b.date));
   const rows=sorted.map(d => {
     const orphan=!isCatValid(d.cat);
-    if (editingId===d.id) {
-      const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
-      const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
-      const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="edit-freq-${d.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:120px;">${orphanOpt}${co}</select></td>
-        <td><select class="inline-edit" id="edit-compte-${d.id}" style="width:110px;">${compteOptsDep}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEdit()">Annuler</button>
-        </div></td>
-      </tr>`;
-    }
     const catBadge=orphan
       ?`<span class="badge badge-orphan" title="Catégorie inconnue — cliquez Modifier pour corriger">${d.cat||'(vide)'} ⚠</span>`
       :`<span style="color:var(--text2);">${d.cat}</span>`;
