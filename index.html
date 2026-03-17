@@ -473,9 +473,10 @@ function demarrerApp() {
 
 // ── MODAL ──
 function ouvrirParametres() {
-  document.getElementById('param-url').value = getUrl();
   renderCatList();
   renderCompteList();
+  const txt = document.getElementById('modal-sync-txt');
+  if (txt) txt.textContent = document.getElementById('sync-status').textContent;
   document.getElementById('modal-params').classList.add('open');
 }
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
