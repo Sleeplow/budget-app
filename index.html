@@ -50,6 +50,8 @@
   .cat-delete:hover { background: rgba(226,75,74,0.12); color: var(--red); }
   .cat-add-row { display: flex; gap: 8px; }
   .cat-add-row input { flex: 1; height: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13px; background: var(--bg); color: var(--text); }
+  .compte-badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(127,119,221,0.15); color: #534AB7; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .compte-badge { color: #AFA9EC; } }
   .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); }
   .tab { padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tab.active { color: var(--text); border-bottom: 2px solid var(--text); font-weight: 500; }
@@ -201,6 +203,7 @@
             <option value="annuel">Annuel</option>
           </select>
         </div>
+        <div class="form-group"><label>Compte</label><select id="rev-compte"></select></div>
       </div>
       <button class="btn btn-green" onclick="ajouterRevenu()">+ Ajouter</button>
     </div>
@@ -220,7 +223,7 @@
         <div class="form-group"><label>Description</label><input type="text" id="dep-desc" placeholder="Ex: Loyer, Netflix..."></div>
         <div class="form-group"><label>Montant ($)</label><input type="number" id="dep-montant" placeholder="0.00" step="0.01" min="0"></div>
       </div>
-      <div class="form-row three">
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
         <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="dep-date"></div>
         <div class="form-group"><label>Fréquence</label>
           <select id="dep-freq">
@@ -234,6 +237,7 @@
           </select>
         </div>
         <div class="form-group"><label>Catégorie</label><select id="dep-cat"></select></div>
+        <div class="form-group"><label>Compte</label><select id="dep-compte"></select></div>
       </div>
       <button class="btn btn-primary" onclick="ajouterDepense()">+ Ajouter</button>
     </div>
@@ -254,7 +258,7 @@
         </div>
       </div>
       <div class="excel-info">
-        Le fichier Excel contient 4 onglets : <strong>Dépenses</strong>, <strong>Revenus</strong>, <strong>Catégories</strong> (modifiable — l'ordre et les noms sont respectés à l'import, "Autre" toujours en dernier) et <strong>Référence</strong> (fréquences valides, lecture seule).
+        Le fichier Excel contient 5 onglets : <strong>Dépenses</strong>, <strong>Revenus</strong>, <strong>Catégories</strong>, <strong>Comptes</strong> (tous modifiables) et <strong>Référence</strong>.
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
       <div id="import-preview-zone"></div>
@@ -303,6 +307,16 @@
     </div>
 
     <div class="modal-section">
+      <div class="modal-section-title">Comptes</div>
+      <p class="modal-hint">Les comptes permettent de suivre où chaque dépense est prélevée et où chaque revenu est déposé. "Tous" est toujours disponible par défaut.</p>
+      <ul class="cat-list" id="compte-list"></ul>
+      <div class="cat-add-row">
+        <input type="text" id="new-compte-input" placeholder="Nouveau compte..." maxlength="30" onkeydown="if(event.key==='Enter') ajouterCompte()">
+        <button class="btn btn-blue" style="height:34px;padding:0 12px;font-size:13px;" onclick="ajouterCompte()">+ Ajouter</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
       <div class="modal-section-title">Danger zone</div>
       <div class="danger-zone">
         <p>Supprimer toutes les dépenses localement et dans Google Sheets. Cette action est irréversible.</p>
@@ -332,6 +346,7 @@ let isSaving = false;
 let dragSrcIndex = null;
 
 const CATS_DEFAULT = ['Logement','Transport','Alimentation','Abonnement','Assurance','Épargne','Loisirs','Autre'];
+const COMPTES_DEFAULT = ['Chèques','Épargne'];
 const FREQ_LABELS = { unique:'Unique', hebdo:'Hebdo.', bihebdo:'Aux 2 sem.', mensuel:'Mensuel', bimensuel:'Aux 2 mois', trimestriel:'Trimestriel', annuel:'Annuel' };
 const FREQ_MAP = {};
 Object.entries(FREQ_LABELS).forEach(([k,v]) => { FREQ_MAP[k]=k; FREQ_MAP[v.toLowerCase()]=k; });
@@ -368,17 +383,32 @@ function refreshCatSelects() {
 
 function isCatValid(cat) { return getCategories().includes(cat); }
 
+// ── COMPTES ──
+function getComptes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('budget_comptes') || 'null');
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+  } catch(e) {}
+  return [...COMPTES_DEFAULT];
+}
+function saveComptes(comptes) {
+  localStorage.setItem('budget_comptes', JSON.stringify(comptes));
+  refreshCompteSelects();
+}
+function refreshCompteSelects() {
+  const comptes = getComptes();
+  const opts = ['dep-compte','rev-compte'].map(id => document.getElementById(id)).filter(Boolean);
+  opts.forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = comptes.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (comptes.includes(cur)) sel.value = cur;
+  });
+}
+function isCompteValid(compte) { return getComptes().includes(compte); }
+
 // ── UTILITAIRES ──
 function today() { return new Date().toISOString().slice(0,10); }
-function cleanDate(s) {
-  if(!s) return today();
-  const str=String(s);
-  // Extraire YYYY-MM-DD depuis ISO complet ex: 2026-03-01T05:00:00.000Z
-  const m=str.match(/^(\d{4}-\d{2}-\d{2})/);
-  if(m) return m[1];
-  return str.slice(0,10);
-}
-function formatDate(s) { if(!s) return ''; const p=cleanDate(String(s)).split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
+function formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
@@ -417,6 +447,7 @@ function demarrerApp() {
   document.getElementById('rev-date').value=today();
   document.getElementById('sf-date').value=addDaysStr(today(),30);
   refreshCatSelects();
+  refreshCompteSelects();
   chargerTout();
 }
 
@@ -488,6 +519,52 @@ function onDragEnd() {
   document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('dragging','drag-over'));
 }
 
+// ── COMPTES UI ──
+function renderCompteList() {
+  const comptes = getComptes();
+  const ul = document.getElementById('compte-list');
+  if (!ul) return;
+  ul.innerHTML = comptes.map((compte, i) => `
+    <li class="cat-item" draggable="true" data-ci="${i}"
+      ondragstart="onDragStartC(event,${i})" ondragover="onDragOverC(event,${i})"
+      ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
+      <span class="cat-drag-handle">⠿</span>
+      <span class="cat-name">${compte}</span>
+      <button class="cat-delete" onclick="supprimerCompte(${i})">×</button>
+    </li>`).join('');
+}
+function ajouterCompte() {
+  const input = document.getElementById('new-compte-input');
+  const nom = input.value.trim(); if (!nom) return;
+  const comptes = getComptes();
+  if (comptes.includes(nom)) { showToast('Ce compte existe déjà','error'); return; }
+  saveComptes([...comptes, nom]);
+  input.value = ''; renderCompteList();
+  showToast(`Compte "${nom}" ajouté`);
+}
+function supprimerCompte(index) {
+  const comptes = getComptes(); const nom = comptes[index];
+  const usedDep = depenses.filter(d => d.compte === nom).length;
+  const usedRev = revenus.filter(r => r.compte === nom).length;
+  const used = usedDep + usedRev;
+  const msg = used > 0 ? `"${nom}" utilisé par ${used} entrée(s). Continuer?` : `Supprimer "${nom}" ?`;
+  if (!confirm(msg)) return;
+  comptes.splice(index, 1);
+  saveComptes(comptes); renderCompteList();
+  showToast(`"${nom}" supprimé`,'info');
+}
+let dragSrcC = null;
+function onDragStartC(e,i){dragSrcC=i;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function onDragOverC(e,i){e.preventDefault();if(dragSrcC===null||dragSrcC===i)return;e.currentTarget.classList.add('drag-over');}
+function onDragLeaveC(e){e.currentTarget.classList.remove('drag-over');}
+function onDropC(e,i){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(dragSrcC===null||dragSrcC===i)return;
+  const comptes=getComptes();const[moved]=comptes.splice(dragSrcC,1);
+  comptes.splice(i,0,moved);saveComptes(comptes);renderCompteList();
+}
+function onDragEndC(){dragSrcC=null;document.querySelectorAll('.cat-item').forEach(el=>el.classList.remove('dragging','drag-over'));}
+
 async function resetApp() {
   if (!confirm('Supprimer TOUTES les dépenses et tous les revenus? Irréversible.')) return;
   if (!confirm('Dernière confirmation — effacement dans Google Sheets aussi.')) return;
@@ -522,10 +599,10 @@ async function chargerTout() {
 }
 
 function mapDep(d) {
-  return { id:d.id||Date.now()+Math.random(), desc:d.description||'', montant:parseFloat(d.montant)||0, date:cleanDate(d.date||today()), freq:d.frequence||'mensuel', cat:String(d.categorie||'') };
+  return { id:d.id||Date.now()+Math.random(), desc:d.description||'', montant:parseFloat(d.montant)||0, date:cleanDate(d.date||today()), freq:d.frequence||'mensuel', cat:String(d.categorie||''), compte:String(d.compte||'') };
 }
 function mapRev(r) {
-  return { id:r.id||Date.now()+Math.random(), desc:r.description||'', montant:parseFloat(r.montant)||0, date:cleanDate(r.date||today()), freq:r.frequence||'mensuel' };
+  return { id:r.id||Date.now()+Math.random(), desc:r.description||'', montant:parseFloat(r.montant)||0, date:cleanDate(r.date||today()), freq:r.frequence||'mensuel', compte:String(r.compte||'') };
 }
 
 async function sauvegarderTout() {
@@ -564,8 +641,9 @@ function ajouterRevenu() {
   const montant=parseFloat(document.getElementById('rev-montant').value);
   const date=document.getElementById('rev-date').value;
   const freq=document.getElementById('rev-freq').value;
+  const compte=document.getElementById('rev-compte').value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Veuillez remplir tous les champs.','error'); return; }
-  revenus.push({id:Date.now(),desc,montant,date,freq});
+  revenus.push({id:Date.now(),desc,montant,date,freq,compte});
   document.getElementById('rev-desc').value='';
   document.getElementById('rev-montant').value='';
   document.getElementById('rev-date').value=today();
@@ -581,9 +659,10 @@ function saveEditRev(id) {
   const montant=parseFloat(document.getElementById('redit-montant-'+id).value);
   const date=document.getElementById('redit-date-'+id).value;
   const freq=document.getElementById('redit-freq-'+id).value;
+  const compte=document.getElementById('redit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
   const idx=revenus.findIndex(r=>r.id===id);
-  if (idx!==-1) revenus[idx]={id,desc,montant,date,freq};
+  if (idx!==-1) revenus[idx]={id,desc,montant,date,freq,compte};
   editingRevId=null; renderRevenus(); updateDashboard();
   sauvegarderTout();
 }
@@ -604,29 +683,34 @@ function renderRevenus() {
   const rows=sorted.map(r=>{
     if (editingRevId===r.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
+      const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
       return `<tr class="editing-row">
         <td><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
         <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:90px;"></td>
         <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:145px;"></td>
         <td><select class="inline-edit" id="redit-freq-${r.id}" style="width:125px;">${fo}</select></td>
+        <td><select class="inline-edit" id="redit-compte-${r.id}" style="width:110px;">${coRev}</select></td>
         <td><div class="edit-actions">
           <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
           <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEditRev()">Annuler</button>
         </div></td>
       </tr>`;
     }
+    const compteRevValid = isCompteValid(r.compte);
+    const compteBadgeRev = r.compte ? (compteRevValid ? `<span class="compte-badge">${r.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<tr>
       <td>${r.desc}</td>
       <td style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</td>
       <td>${formatDate(r.date)}</td>
       <td><span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span></td>
+      <td>${compteBadgeRev}</td>
       <td><div class="edit-actions">
         <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
         <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
       </div></td>
     </tr>`;
   }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── DÉPENSES CRUD ──
@@ -654,9 +738,10 @@ function saveEdit(id) {
   const date=document.getElementById('edit-date-'+id).value;
   const freq=document.getElementById('edit-freq-'+id).value;
   const cat=document.getElementById('edit-cat-'+id).value;
+  const compte=document.getElementById('edit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
   const idx=depenses.findIndex(d=>d.id===id);
-  if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat};
+  if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat,compte};
   editingId=null; renderDepenses(); updateDashboard();
   sauvegarderTout();
 }
@@ -681,12 +766,14 @@ function renderDepenses() {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
       const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
+      const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
       return `<tr class="editing-row">
         <td><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
         <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:90px;"></td>
         <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:145px;"></td>
         <td><select class="inline-edit" id="edit-freq-${d.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:130px;">${orphanOpt}${co}</select></td>
+        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:120px;">${orphanOpt}${co}</select></td>
+        <td><select class="inline-edit" id="edit-compte-${d.id}" style="width:110px;">${compteOptsDep}</select></td>
         <td><div class="edit-actions">
           <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
           <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEdit()">Annuler</button>
@@ -696,19 +783,22 @@ function renderDepenses() {
     const catBadge=orphan
       ?`<span class="badge badge-orphan" title="Catégorie inconnue — cliquez Modifier pour corriger">${d.cat||'(vide)'} ⚠</span>`
       :`<span style="color:var(--text2);">${d.cat}</span>`;
+    const compteDepValid = isCompteValid(d.compte);
+    const compteBadgeDep = d.compte ? (compteDepValid ? `<span class="compte-badge">${d.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<tr>
       <td>${d.desc}</td>
-      <td style="font-weight:500;">$${d.montant.toFixed(2)}</td>
+      <td style="font-weight:500;">-$${d.montant.toFixed(2)}</td>
       <td>${formatDate(d.date)}</td>
       <td><span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span></td>
       <td>${catBadge}</td>
+      <td>${compteBadgeDep}</td>
       <td><div class="edit-actions">
         <button class="btn-row-icon" onclick="startEdit(${d.id})">Modifier</button>
         <button class="btn-row-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
       </div></td>
     </tr>`;
   }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Catégorie</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Catégorie</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── EXCEL EXPORT ──
@@ -717,17 +807,17 @@ function exporterExcel() {
   const wb = XLSX.utils.book_new();
 
   // Onglet 1 — Dépenses
-  const dep_data = [['id','description','montant','date','frequence','categorie']];
-  depenses.forEach(d => dep_data.push([d.id, d.desc, d.montant, d.date, d.freq, d.cat]));
+  const dep_data = [['id','description','montant','date','frequence','categorie','compte']];
+  depenses.forEach(d => dep_data.push([d.id, d.desc, d.montant, d.date, d.freq, d.cat, d.compte||'']));
   const wsDep = XLSX.utils.aoa_to_sheet(dep_data);
-  wsDep['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16},{wch:16}];
+  wsDep['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb, wsDep, 'Dépenses');
 
   // Onglet 2 — Revenus
-  const rev_data = [['id','description','montant','date','frequence']];
-  revenus.forEach(r => rev_data.push([r.id, r.desc, r.montant, r.date, r.freq]));
+  const rev_data = [['id','description','montant','date','frequence','compte']];
+  revenus.forEach(r => rev_data.push([r.id, r.desc, r.montant, r.date, r.freq, r.compte||'']));
   const wsRev = XLSX.utils.aoa_to_sheet(rev_data);
-  wsRev['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16}];
+  wsRev['!cols'] = [{wch:14},{wch:28},{wch:12},{wch:14},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb, wsRev, 'Revenus');
 
   // Onglet 3 — Catégories (éditable)
@@ -737,7 +827,13 @@ function exporterExcel() {
   wsCat['!cols'] = [{wch:22},{wch:32}];
   XLSX.utils.book_append_sheet(wb, wsCat, 'Catégories');
 
-  // Onglet 4 — Référence (lecture seule)
+  // Onglet 4 — Comptes
+  const comptes_data = [['compte'],...getComptes().map(cp=>[cp])];
+  const wsComptes = XLSX.utils.aoa_to_sheet(comptes_data);
+  wsComptes['!cols'] = [{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsComptes, 'Comptes');
+
+  // Onglet 5 — Référence (lecture seule)
   const ref_data = [['Fréquences valides','Description'],['unique','Une seule fois'],['hebdo','Chaque semaine'],['bihebdo','Aux 2 semaines'],['mensuel','Chaque mois'],['bimensuel','Aux 2 mois'],['trimestriel','Aux 3 mois'],['annuel','Une fois par an']];
   const wsRef = XLSX.utils.aoa_to_sheet(ref_data);
   wsRef['!cols'] = [{wch:20},{wch:22}];
@@ -754,6 +850,21 @@ function previewImport(event) {
   reader.onload=function(e) {
     try {
       const wb=XLSX.read(e.target.result,{type:'binary'});
+
+      // Comptes
+      let newComptes=null;
+      const comptesSheet=wb.Sheets['Comptes'];
+      if (comptesSheet) {
+        const comptesRows=XLSX.utils.sheet_to_json(comptesSheet,{header:1,defval:''});
+        if (comptesRows.length>1) {
+          const hdrC=comptesRows[0].map(h=>String(h).toLowerCase().trim());
+          const iC=hdrC.indexOf('compte');
+          if (iC!==-1) {
+            const parsed=comptesRows.slice(1).map(r=>String(r[iC]||'').trim()).filter(c=>c);
+            if (parsed.length>0) newComptes=parsed;
+          }
+        }
+      }
 
       // Catégories
       let newCats=null;
@@ -785,11 +896,13 @@ function previewImport(event) {
             let date=String(row[iDate]||'').trim();
             const freq=String(row[iFreq]||'').toLowerCase().trim();
             const cat=iCatD!==-1?String(row[iCatD]||'').trim():'Autre';
+            const iCompteD=hdr.indexOf('compte');
+            const compte=iCompteD!==-1?String(row[iCompteD]||'').trim():'';
             const existingId=iId!==-1?parseInt(row[iId]):null;
             if (typeof row[iDate]==='number'){const d=XLSX.SSF.parse_date_code(row[iDate]);date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
             const normFreq=FREQ_MAP[freq];
             if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errors.push(`Ligne ${idx+2}`);
-            else valid.push({id:existingId,desc,montant,date,freq:normFreq,cat:cat||'Autre'});
+            else valid.push({id:existingId,desc,montant,date,freq:normFreq,cat:cat||'Autre',compte});
           });
         }
       }
@@ -811,18 +924,20 @@ function previewImport(event) {
               const freq=String(row[iFreq]||'').toLowerCase().trim();
               const existingId=iId!==-1?parseInt(row[iId]):null;
               if (typeof row[iDate]==='number'){const d=XLSX.SSF.parse_date_code(row[iDate]);date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
+              const iCompteR=hdr.indexOf('compte');
+              const compteR=iCompteR!==-1?String(row[iCompteR]||'').trim():'';
               const normFreq=FREQ_MAP[freq];
               if (!desc||isNaN(montant)||montant<=0||!date.match(/^\d{4}-\d{2}-\d{2}$/)||!normFreq) errorsRev.push(`Ligne ${idx+2}`);
-              else validRev.push({id:existingId,desc,montant,date,freq:normFreq});
+              else validRev.push({id:existingId,desc,montant,date,freq:normFreq,compte:compteR});
             });
           }
         }
       }
 
-      if (!valid.length&&!validRev.length&&!newCats) { showToast('Aucune donnée valide trouvée.','error'); return; }
-      importPreviewData={valid,errors,newCats,validRev,errorsRev};
+      if (!valid.length&&!validRev.length&&!newCats&&!newComptes) { showToast('Aucune donnée valide trouvée.','error'); return; }
+      importPreviewData={valid,errors,newCats,newComptes,validRev,errorsRev};
 
-      const catMsg=newCats?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories : ${newCats.filter(c=>c!=='Autre').join(', ')}</p>`:'';
+      const compteMsg=newComptes?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Comptes : ${newComptes.join(', ')}</p>`:'';const catMsg=newCats?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories : ${newCats.filter(c=>c!=='Autre').join(', ')}</p>`:'';
       const depMsg=valid.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${valid.length} dépense(s) à importer${errors.length?' · '+errors.length+' ignorée(s)':''}</p>`:'';
       const revMsg=validRev.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${validRev.length} revenu(s) à importer${errorsRev.length?' · '+errorsRev.length+' ignoré(s)':''}</p>`:'';
 
@@ -830,7 +945,7 @@ function previewImport(event) {
         <div style="margin-top:1rem;">
           <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 16px;">
             <p style="font-size:14px;font-weight:500;margin-bottom:4px;">Aperçu de l'import</p>
-            ${catMsg}${depMsg}${revMsg}
+            ${compteMsg}${catMsg}${depMsg}${revMsg}
           </div>
           <div class="preview-actions">
             <button class="btn btn-blue" onclick="confirmerImport()">Confirmer l'import</button>
@@ -845,16 +960,17 @@ function previewImport(event) {
 function confirmerImport() {
   if (!importPreviewData) return;
   if (importPreviewData.newCats) { saveCategories(importPreviewData.newCats); refreshCatSelects(); }
+  if (importPreviewData.newComptes) { saveComptes(importPreviewData.newComptes); refreshCompteSelects(); }
   let dAdded=0,dUpdated=0,rAdded=0,rUpdated=0;
   (importPreviewData.valid||[]).forEach(row=>{
     const ex=row.id?depenses.find(d=>d.id===row.id):null;
-    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat});dUpdated++;}
-    else{depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat});dAdded++;}
+    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat,compte:row.compte||''});dUpdated++;}
+    else{depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat,compte:row.compte||''});dAdded++;}
   });
   (importPreviewData.validRev||[]).forEach(row=>{
     const ex=row.id?revenus.find(r=>r.id===row.id):null;
-    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq});rUpdated++;}
-    else{revenus.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq});rAdded++;}
+    if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,compte:row.compte||''});rUpdated++;}
+    else{revenus.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,compte:row.compte||''});rAdded++;}
   });
   importPreviewData=null;
   document.getElementById('import-preview-zone').innerHTML='';
@@ -874,7 +990,7 @@ function annulerImport() {
 // ── CALCULS ──
 function getOccurrences(item,from,to) {
   const fromDate=new Date(from+'T00:00:00'),toDate=new Date(to+'T00:00:00');
-  let occ=[],current=new Date(cleanDate(item.date)+'T00:00:00'),safety=0;
+  let occ=[],current=new Date(item.date+'T00:00:00'),safety=0;
   if (item.freq==='unique'){if(current>=fromDate&&current<=toDate)occ.push({date:item.date,item});return occ;}
   while(current<=toDate&&safety<500){
     safety++;
