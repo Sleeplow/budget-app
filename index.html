@@ -438,7 +438,7 @@ function sauvegarderUrl() {
   localStorage.setItem('budget_api_url', url);
   fermerParametres();
   showToast('URL mise à jour');
-  chargerDepenses();
+  chargerTout();
 }
 function demarrerApp() {
   document.getElementById('setup-screen').style.display='none';
@@ -455,6 +455,7 @@ function demarrerApp() {
 function ouvrirParametres() {
   document.getElementById('param-url').value = getUrl();
   renderCatList();
+  renderCompteList();
   document.getElementById('modal-params').classList.add('open');
 }
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
@@ -576,7 +577,7 @@ async function resetApp() {
 }
 
 // ── GOOGLE SHEETS ──
-async function chargerTout() {
+async function chargerTout(showMsg=false) {
   const url=getUrl();
   if (!url) { setSyncStatus('error','URL non configurée'); return; }
   setSyncStatus('loading','Chargement depuis Google Sheets...');
@@ -591,9 +592,11 @@ async function chargerTout() {
     }
     setSyncStatus('ok',`Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     renderDepenses(); renderRevenus(); updateDashboard();
+    if(showMsg) showToast('Données synchronisées !');
   } catch(e) {
-    setSyncStatus('error','Erreur de connexion à Google Sheets');
-    showToast('Impossible de joindre Google Sheets','error');
+    console.error('chargerTout erreur:', e);
+    setSyncStatus('error','Erreur de connexion à Google Sheets — voir console');
+    showToast('Erreur : '+e.message,'error');
     depenses=[]; revenus=[]; renderDepenses(); renderRevenus();
   }
 }
@@ -621,7 +624,7 @@ async function sauvegarderTout() {
   isSaving=false;
 }
 
-async function syncNow() { await chargerTout(); showToast('Données rechargées','info'); }
+async function syncNow() { await chargerTout(true); }
 
 // ── NAVIGATION ──
 function showTab(id, btn) {
