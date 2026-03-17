@@ -93,7 +93,7 @@
   .inline-edit { height: 30px; font-size: 13px; padding: 0 6px; min-width: 0; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
   .edit-actions { display: flex; gap: 6px; }
   .divider { width: 1px; height: 24px; background: var(--border); }
-  .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; padding: 8px 12px; background: var(--bg2); border-radius: var(--radius-sm); }
+  .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text3); padding: 6px 0; }
   .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
   .sync-dot.ok { background: var(--green); }
   .sync-dot.error { background: var(--red); }
@@ -154,13 +154,6 @@ window.dispatchEvent(new Event('fb-ready'));
     <button class="btn-icon-sm" onclick="ouvrirParametres()" title="Paramètres">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
-  </div>
-
-  <div class="sync-bar">
-    <div class="sync-dot" id="sync-dot"></div>
-    <span id="sync-status">Connexion à Firebase...</span>
-    <span style="flex:1"></span>
-    <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="syncNow()">Synchroniser</button>
   </div>
 
   <div class="tabs">
@@ -430,7 +423,6 @@ function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r;
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
 function freqLabel(f) { return FREQ_LABELS[f]||f; }
-function getUrl() { return localStorage.getItem('budget_api_url') || ''; }
 
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -459,9 +451,10 @@ function demarrerApp() {
 
 // ── MODAL ──
 function ouvrirParametres() {
-  document.getElementById('param-url').value = getUrl();
   renderCatList();
   renderCompteList();
+  const txt = document.getElementById('modal-sync-txt');
+  if (txt) txt.textContent = document.getElementById('sync-status').textContent;
   document.getElementById('modal-params').classList.add('open');
 }
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
