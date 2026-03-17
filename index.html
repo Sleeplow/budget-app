@@ -577,28 +577,51 @@ async function resetApp() {
 }
 
 // ── GOOGLE SHEETS ──
-async function chargerTout(showMsg=false) {
+function chargerTout(showMsg=false) {
   const url=getUrl();
-  if (!url) { setSyncStatus('error','URL non configurée'); return; }
+  if (!url) { setSyncStatus('error','URL non configurée'); return Promise.resolve(); }
   setSyncStatus('loading','Chargement depuis Google Sheets...');
-  try {
-    const resp=await fetch(url+'?action=getAll',{redirect:'follow'});
-    const data=await resp.json();
-    if (Array.isArray(data)) {
-      depenses=data.map(mapDep); revenus=[];
-    } else {
-      depenses=(data.depenses||[]).map(mapDep);
-      revenus=(data.revenus||[]).map(mapRev);
-    }
-    setSyncStatus('ok',`Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard();
-    if(showMsg) showToast('Données synchronisées !');
-  } catch(e) {
-    console.error('chargerTout erreur:', e);
-    setSyncStatus('error','Erreur de connexion à Google Sheets — voir console');
-    showToast('Erreur : '+e.message,'error');
-    depenses=[]; revenus=[]; renderDepenses(); renderRevenus();
-  }
+  return new Promise((resolve) => {
+    const cbName = '__budgetCb_' + Date.now();
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      setSyncStatus('error','Délai dépassé — vérifier l\'URL Apps Script');
+      showToast('Erreur : délai dépassé','error');
+      resolve();
+    }, 10000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      try {
+        if (Array.isArray(data)) {
+          depenses=data.map(mapDep); revenus=[];
+        } else {
+          depenses=(data.depenses||[]).map(mapDep);
+          revenus=(data.revenus||[]).map(mapRev);
+        }
+        setSyncStatus('ok',`Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
+        renderDepenses(); renderRevenus(); updateDashboard();
+        if(showMsg) showToast('Données synchronisées !');
+      } catch(e) {
+        console.error('chargerTout parse erreur:', e);
+        setSyncStatus('error','Erreur lors du traitement des données');
+        showToast('Erreur : '+e.message,'error');
+      }
+      resolve();
+    };
+    script.src = url + '?action=getAll&callback=' + cbName;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      setSyncStatus('error','Impossible de joindre Google Sheets');
+      showToast('Erreur de connexion','error');
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
 }
 
 function mapDep(d) {
@@ -614,7 +637,13 @@ async function sauvegarderTout() {
   isSaving=true;
   setSyncStatus('loading','Sauvegarde en cours...');
   try {
-    await fetch(url,{method:'POST',body:JSON.stringify({action:'saveAll',depenses,revenus}),redirect:'follow'});
+    // no-cors permet d'envoyer sans bloquer, on ne peut pas lire la réponse
+    await fetch(url, {
+      method:'POST',
+      mode:'no-cors',
+      body: JSON.stringify({action:'saveAll',depenses,revenus}),
+      headers:{'Content-Type':'text/plain'}
+    });
     setSyncStatus('ok',`Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     showToast('Sauvegardé dans Google Sheets');
   } catch(e) {
