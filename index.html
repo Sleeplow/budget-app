@@ -1142,7 +1142,7 @@ function updateDashboard() {
   const soldeFinalEl = document.getElementById('dash-solde-final');
   if (dateLabel) dateLabel.textContent = `jusqu'au ${formatDate(end30)}`;
   if(!all.length){
-    liste.innerHTML='<div class="empty-state">Aucune transaction jusqu'au '+formatDate(end30)+'</div>';
+    liste.innerHTML='<div class="empty-state">Aucune transaction jusqu\'au '+formatDate(end30)+'</div>';
     if(soldeFinalEl) soldeFinalEl.innerHTML='';
     return;
   }
