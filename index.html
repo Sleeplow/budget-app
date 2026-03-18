@@ -165,16 +165,19 @@ window.dispatchEvent(new Event('fb-ready'));
   <!-- TABLEAU DE BORD -->
   <div id="tab-tableau-bord" class="section active">
     <div class="card" style="margin-bottom:1rem;">
-      <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-end;">
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500;">Solde actuel ($)</div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input type="number" id="solde-compte" placeholder="Ex: 2500.00" step="0.01" style="max-width:180px;" oninput="updateDashboard()">
-            <span style="font-size:13px;color:var(--text2);">$</span>
+      <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:flex-start;">
+        <div style="flex:1;min-width:220px;">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Soldes des comptes</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <label style="font-size:13px;color:var(--text2);min-width:160px;">Solde actuel total ($)</label>
+            <input type="number" id="solde-compte" placeholder="Auto" step="0.01"
+              style="width:120px;background:var(--bg2);" oninput="onSoldeTotalChange()">
+            <span style="font-size:13px;color:var(--text3);">$</span>
           </div>
+          <div id="dash-soldes-comptes"></div>
         </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500;">Date cible</div>
+        <div style="min-width:180px;">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
           <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:180px;">
         </div>
       </div>
@@ -191,7 +194,10 @@ window.dispatchEvent(new Event('fb-ready'));
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
         <div class="section-title" style="margin-bottom:0;">Prochaines transactions</div>
-        <span id="dash-date-label" style="font-size:12px;color:var(--text3);"></span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select id="dash-filtre-compte" onchange="onFiltreCompteChange()" style="height:30px;font-size:12px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);"></select>
+          <span id="dash-date-label" style="font-size:12px;color:var(--text3);"></span>
+        </div>
       </div>
       <div id="prochaines-list"><div class="empty-state">Aucune transaction ajoutée</div></div>
       <div id="dash-solde-final"></div>
@@ -421,6 +427,8 @@ function getComptes() {
 function saveComptes(comptes) {
   localStorage.setItem('budget_comptes', JSON.stringify(comptes));
   refreshCompteSelects();
+  refreshDashFiltreCompte();
+  renderDashSoldesComptes();
   sauvegarderTout();
 }
 function refreshCompteSelects() {
@@ -490,10 +498,107 @@ function demarrerApp() {
   if (dashDate) dashDate.value=addDaysStr(today(),30);
   refreshCatSelects();
   refreshCompteSelects();
+  refreshDashFiltreCompte();
+  renderDashSoldesComptes();
   chargerTout();
 }
 
 // ── MODAL ──
+// ── SOLDES PAR COMPTE ──
+const SOLDES_KEY = 'budget_soldes_comptes';
+
+function getSoldesComptes() {
+  try { return JSON.parse(localStorage.getItem(SOLDES_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function setSoldeCompte(compte, val) {
+  const soldes = getSoldesComptes();
+  if (val === null || val === '') delete soldes[compte];
+  else soldes[compte] = parseFloat(val);
+  localStorage.setItem(SOLDES_KEY, JSON.stringify(soldes));
+}
+
+function getSoldeTotalAuto() {
+  const soldes = getSoldesComptes();
+  const vals = Object.values(soldes).filter(v => !isNaN(v));
+  if (vals.length === 0) return null;
+  return vals.reduce((s, v) => s + v, 0);
+}
+
+function onSoldeCompteInput(compte, val) {
+  setSoldeCompte(compte, val === '' ? null : val);
+  const total = getSoldeTotalAuto();
+  const totalEl = document.getElementById('solde-compte');
+  if (total !== null) {
+    totalEl.value = total.toFixed(2);
+    totalEl.readOnly = true;
+    totalEl.style.opacity = '0.55';
+    totalEl.style.cursor = 'not-allowed';
+  } else {
+    totalEl.readOnly = false;
+    totalEl.style.opacity = '';
+    totalEl.style.cursor = '';
+    totalEl.placeholder = 'Ex: 2500.00';
+  }
+  updateDashboard();
+}
+
+function onSoldeTotalChange() {
+  const total = getSoldeTotalAuto();
+  if (total === null) updateDashboard();
+}
+
+function renderDashSoldesComptes() {
+  const comptes = getComptes();
+  const soldes = getSoldesComptes();
+  const container = document.getElementById('dash-soldes-comptes');
+  if (!container) return;
+  container.innerHTML = comptes.map(cp => {
+    const safecp = cp.replace(/'/g, "\'");
+    const val = soldes[cp] !== undefined ? soldes[cp] : '';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <label style="font-size:13px;color:var(--text2);min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${cp}">${cp}</label>
+      <input type="number" placeholder="0.00" step="0.01" value="${val}"
+        style="width:120px;"
+        oninput="onSoldeCompteInput('${safecp}', this.value)">
+      <span style="font-size:13px;color:var(--text3);">$</span>
+    </div>`;
+  }).join('');
+  // Mettre à jour le total
+  const total = getSoldeTotalAuto();
+  const totalEl = document.getElementById('solde-compte');
+  if (totalEl) {
+    if (total !== null) {
+      totalEl.value = total.toFixed(2);
+      totalEl.readOnly = true;
+      totalEl.style.opacity = '0.55';
+      totalEl.style.cursor = 'not-allowed';
+      totalEl.placeholder = 'Auto';
+    } else {
+      totalEl.readOnly = false;
+      totalEl.style.opacity = '';
+      totalEl.style.cursor = '';
+      totalEl.placeholder = 'Ex: 2500.00';
+    }
+  }
+}
+
+function refreshDashFiltreCompte() {
+  const sel = document.getElementById('dash-filtre-compte');
+  if (!sel) return;
+  const current = sel.value;
+  const comptes = getComptes();
+  sel.innerHTML = '<option value="tous">Tous les comptes</option>' +
+    comptes.map(cp => `<option value="${cp}">${cp}</option>`).join('');
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  else sel.value = 'tous';
+}
+
+function onFiltreCompteChange(doUpdate=true) {
+  if (doUpdate) updateDashboard();
+}
+
 function changerFormatDate(fmt) {
   localStorage.setItem('budget_date_format', fmt);
   // Rafraîchir toutes les vues qui affichent des dates
@@ -1105,10 +1210,15 @@ function getOccurrences(item,from,to) {
 }
 
 function updateDashboard() {
-  const si=parseFloat(document.getElementById('solde-compte').value)||null;
+  const filtreCompte = (document.getElementById('dash-filtre-compte')||{}).value || 'tous';
+  const isFiltreCompte = filtreCompte !== 'tous';
+  const siGlobal = parseFloat(document.getElementById('solde-compte').value)||null;
+  const soldesComptes = getSoldesComptes();
+  const siFiltre = isFiltreCompte ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : null) : null;
+  const si = isFiltreCompte ? siFiltre : siGlobal;
   const el=document.getElementById('m-solde');
-  el.textContent=si!==null?'$'+si.toFixed(2):'—';
-  el.className='metric-value'+(si!==null?(si>=0?' positive':' negative'):'');
+  el.textContent=siGlobal!==null?'$'+siGlobal.toFixed(2):'—';
+  el.className='metric-value'+(siGlobal!==null?(siGlobal>=0?' positive':' negative'):'');
   const t=today();
   const firstDay=t.slice(0,8)+'01';
   const lastDay=t.slice(0,8)+String(new Date(parseInt(t.slice(0,4)),parseInt(t.slice(5,7)),0).getDate()).padStart(2,'0');
@@ -1123,10 +1233,12 @@ function updateDashboard() {
   document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
   document.getElementById('m-rev-30j').textContent='+$'+r30.toFixed(2);
 
-  // Fusionner dépenses + revenus — revenus en premier dans chaque journée
+  // Fusionner dépenses + revenus — filtrer par compte si sélectionné
   let all=[];
-  depenses.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revenus.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
+  const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
+  depFiltre.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
+  revFiltre.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
   // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
   all.sort((a,b)=>{
     const dateCmp = a.date.localeCompare(b.date);
