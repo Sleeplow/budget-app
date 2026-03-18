@@ -1077,11 +1077,19 @@ function updateDashboard() {
   document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
   document.getElementById('m-rev-30j').textContent='+$'+r30.toFixed(2);
 
-  // Fusionner dépenses + revenus avec signe
+  // Fusionner dépenses + revenus — revenus en premier dans chaque journée
   let all=[];
   depenses.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
   revenus.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
-  all.sort((a,b)=>a.date.localeCompare(b.date));
+  // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
+  all.sort((a,b)=>{
+    const dateCmp = a.date.localeCompare(b.date);
+    if (dateCmp !== 0) return dateCmp;
+    // Même date : revenus (montant >= 0) avant dépenses
+    if (a.montant >= 0 && b.montant < 0) return -1;
+    if (a.montant < 0 && b.montant >= 0) return 1;
+    return 0;
+  });
 
   const liste=document.getElementById('prochaines-list');
   if(!all.length){liste.innerHTML='<div class="empty-state">Aucune transaction dans les 30 prochains jours</div>';return;}
@@ -1097,16 +1105,27 @@ function updateDashboard() {
         <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span>
       </div>`;
 
+  // Grouper par date pour ajouter les séparateurs
+  let currentDate = null;
   const lignes = all.map(o=>{
     soldeCourant += o.montant;
     const isRev = o.montant >= 0;
+    const isNewDay = o.date !== currentDate;
+    currentDate = o.date;
+
+    const isFirst = all.indexOf(o) === 0;
+    const dayHeader = isNewDay
+      ? `<div style="padding:5px 8px;font-size:11px;font-weight:500;color:var(--text2);background:var(--bg2);border-radius:var(--radius-sm);margin-top:${isFirst?'0':'10px'};margin-bottom:2px;">
+          ${formatDate(o.date)}
+         </div>`
+      : '';
+
     const montantStr = `<span style="text-align:right;font-weight:500;color:${isRev?'var(--green)':'var(--red)'};">${isRev?'+':'-'}$${Math.abs(o.montant).toFixed(2)}</span>`;
     const soldeStr = hasSolde
       ? `<span style="text-align:right;font-weight:500;color:${soldeCourant>=0?'var(--green)':'var(--red)'};">$${soldeCourant.toFixed(2)}</span>`
       : '';
-    const grid = hasSolde ? 'grid-template-columns:100px 1fr 100px 110px' : 'grid-template-columns:100px 1fr 100px';
-    return `<div style="display:grid;${grid};gap:8px;padding:9px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-      <span style="color:var(--text2);">${formatDate(o.date)}</span>
+    const grid = hasSolde ? 'grid-template-columns:1fr 100px 110px' : 'grid-template-columns:1fr 100px';
+    return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
       <span>${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
       ${soldeStr}
