@@ -302,6 +302,25 @@ window.dispatchEvent(new Event('fb-ready'));
     </div>
 
     <div class="modal-section">
+      <div class="modal-section-title">Format de date</div>
+      <p class="modal-hint">Choisir le format d'affichage des dates dans toute l'application.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+          <input type="radio" name="date-format" value="YYYY-MM-DD" onchange="changerFormatDate(this.value)" style="width:auto;height:auto;">
+          <span>YYYY-MM-DD <span style="color:var(--text3);font-size:12px;">— 2026-03-17 (par défaut)</span></span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+          <input type="radio" name="date-format" value="DD-MM-YYYY" onchange="changerFormatDate(this.value)" style="width:auto;height:auto;">
+          <span>DD-MM-YYYY <span style="color:var(--text3);font-size:12px;">— 17-03-2026</span></span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+          <input type="radio" name="date-format" value="MM-DD-YYYY" onchange="changerFormatDate(this.value)" style="width:auto;height:auto;">
+          <span>MM-DD-YYYY <span style="color:var(--text3);font-size:12px;">— 03-17-2026</span></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-section">
       <div class="modal-section-title">Catégories</div>
       <p class="modal-hint">Glisse pour réordonner. Tu peux aussi modifier les catégories dans l'onglet Excel "Catégories" et les réimporter. "Autre" est toujours en dernier.</p>
       <ul class="cat-list" id="cat-list"></ul>
@@ -422,7 +441,17 @@ function cleanDate(s) {
   if(m) return m[1];
   return str.slice(0,10);
 }
-function formatDate(s) { if(!s) return ''; const p=cleanDate(String(s)).split('-'); if(p.length!==3) return String(s); return `${p[2]}/${p[1]}/${p[0]}`; }
+function getDateFormat() { return localStorage.getItem('budget_date_format') || 'YYYY-MM-DD'; }
+function formatDate(s) {
+  if(!s) return '';
+  const p = cleanDate(String(s)).split('-');
+  if(p.length !== 3) return String(s);
+  const [y, m, d] = p;
+  const fmt = getDateFormat();
+  if (fmt === 'DD-MM-YYYY') return `${d}-${m}-${y}`;
+  if (fmt === 'MM-DD-YYYY') return `${m}-${d}-${y}`;
+  return `${y}-${m}-${d}`; // YYYY-MM-DD par défaut
+}
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function addMonths(d,n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
 function addDaysStr(s,n) { return addDays(new Date(s+'T00:00:00'),n).toISOString().slice(0,10); }
@@ -463,9 +492,24 @@ function demarrerApp() {
 }
 
 // ── MODAL ──
+function changerFormatDate(fmt) {
+  localStorage.setItem('budget_date_format', fmt);
+  // Rafraîchir toutes les vues qui affichent des dates
+  renderDepenses();
+  renderRevenus();
+  updateDashboard();
+  calculerSoldeFutur();
+  showToast('Format de date mis à jour');
+}
+
 function ouvrirParametres() {
   renderCatList();
   renderCompteList();
+  // Cocher le bon format de date
+  const fmt = getDateFormat();
+  document.querySelectorAll('input[name="date-format"]').forEach(r => {
+    r.checked = r.value === fmt;
+  });
   try {
     const txt = document.getElementById('modal-sync-txt');
     const status = document.getElementById('sync-status');
