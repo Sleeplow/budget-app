@@ -106,6 +106,18 @@
   .toast.info { background: var(--blue); color: #fff; }
   .preview-actions { display: flex; gap: 8px; margin-top: 10px; }
   .excel-info { background: rgba(24,95,165,0.07); border: 0.5px solid rgba(24,95,165,0.2); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.6; }
+  .color-picker-popup { position:fixed; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius); padding:12px; z-index:300; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; }
+  .color-picker-popup.open { display:block; }
+  .cp-label { font-size:11px; font-weight:500; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:7px; }
+  .cp-palette { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .cp-swatch { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform 0.1s; flex-shrink:0; box-sizing:border-box; }
+  .cp-swatch:hover { transform:scale(1.15); }
+  .cp-swatch.active { border-color:var(--text) !important; }
+  .cp-custom-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .cp-add-btn { width:22px; height:22px; border-radius:50%; border:1.5px dashed var(--border2); background:none; color:var(--text2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; }
+  .cp-add-btn:hover { border-color:var(--text); color:var(--text); }
+  .cat-color-dot { width:18px; height:18px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
+  .cat-color-dot:hover { transform:scale(1.2); border-color:var(--border2); }
   .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; }
   .entry-card.editing { background:var(--bg3); }
   .entry-card-desc { font-size:13px; font-weight:500; margin-bottom:6px; word-break:break-word; }
@@ -140,11 +152,11 @@ const DOC_REF = doc(db, 'budget', 'data');
 window._fbCharger = async function() {
   const snap = await getDoc(DOC_REF);
   if (snap.exists()) return snap.data();
-  return { depenses: [], revenus: [], categories: [], comptes: [] };
+  return { depenses: [], revenus: [], categories: [], comptes: [], categoryColors: {}, compteColors: {}, customColors: [] };
 };
 
-window._fbSauvegarder = async function(depenses, revenus, categories, comptes) {
-  await setDoc(DOC_REF, { depenses, revenus, categories, comptes });
+window._fbSauvegarder = async function(depenses, revenus, categories, comptes, categoryColors, compteColors, customColors) {
+  await setDoc(DOC_REF, { depenses, revenus, categories, comptes, categoryColors, compteColors, customColors });
 };
 
 window._fbReady = true;
@@ -384,6 +396,15 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 
+<div id="color-picker-popup" class="color-picker-popup">
+  <div class="cp-label">Palette</div>
+  <div class="cp-palette" id="cp-palette-grid"></div>
+  <div class="cp-label">Personnalisé</div>
+  <div class="cp-custom-row" id="cp-custom-row">
+    <button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>
+  </div>
+  <input type="color" id="cp-native-input" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;" oninput="onNativeColorChange(this.value)">
+</div>
 <div id="toast" class="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -399,6 +420,45 @@ let editingCompteIndex = null;
 let importPreviewData = null;
 let isSaving = false;
 let dragSrcIndex = null;
+let categoryColors = {};
+let compteColors = {};
+let customColors = [];
+let colorPickerTarget = null;
+
+const PALETTE = [
+  '#E53935','#D81B60','#8E24AA','#5E35B1',
+  '#1E88E5','#039BE5','#00ACC1','#00897B',
+  '#43A047','#7CB342','#F9A825','#FB8C00',
+  '#FF7043','#6D4C41','#546E7A','#EC407A',
+  '#7E57C2','#29B6F6','#26C6DA','#66BB6A',
+  '#D4E157','#FFCA28','#FF5722','#78909C',
+];
+
+function getNextPaletteColor(colorsObj) {
+  const used = Object.values(colorsObj);
+  const unused = PALETTE.filter(c => !used.includes(c));
+  return unused.length > 0 ? unused[0] : PALETTE[used.length % PALETTE.length];
+}
+function getCatColor(name) {
+  if (!categoryColors[name]) {
+    categoryColors[name] = getNextPaletteColor(categoryColors);
+    localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors));
+  }
+  return categoryColors[name];
+}
+function getCompteColor(name) {
+  if (!compteColors[name]) {
+    compteColors[name] = getNextPaletteColor(compteColors);
+    localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors));
+  }
+  return compteColors[name];
+}
+function loadColors() {
+  try { categoryColors = JSON.parse(localStorage.getItem('budget_cat_colors') || '{}'); } catch(e) { categoryColors = {}; }
+  try { compteColors = JSON.parse(localStorage.getItem('budget_compte_colors') || '{}'); } catch(e) { compteColors = {}; }
+  try { customColors = JSON.parse(localStorage.getItem('budget_custom_colors') || '[]'); } catch(e) { customColors = []; }
+}
+loadColors();
 
 const CATS_DEFAULT = ['Logement','Transport','Alimentation','Abonnement','Assurance','Épargne','Loisirs','Autre'];
 const COMPTES_DEFAULT = ['Chèques','Épargne'];
@@ -648,6 +708,57 @@ function ouvrirParametres() {
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
 function fermerModalSiOverlay(e) { if (e.target === document.getElementById('modal-params')) fermerParametres(); }
 
+// ── COLOR PICKER ──
+function openColorPicker(type, name, event) {
+  event.stopPropagation();
+  colorPickerTarget = { type, name };
+  const popup = document.getElementById('color-picker-popup');
+  const currentColor = type === 'cat' ? getCatColor(name) : getCompteColor(name);
+
+  // Palette
+  const grid = document.getElementById('cp-palette-grid');
+  grid.innerHTML = PALETTE.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('');
+
+  // Custom colors
+  const row = document.getElementById('cp-custom-row');
+  row.innerHTML = customColors.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('') +
+    `<button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>`;
+
+  // Position
+  const rect = event.currentTarget.getBoundingClientRect();
+  popup.style.top = (rect.bottom + 6) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+  popup.classList.add('open');
+  document.getElementById('cp-native-input').value = currentColor;
+}
+function closeColorPicker() {
+  document.getElementById('color-picker-popup').classList.remove('open');
+  colorPickerTarget = null;
+}
+function selectColor(color) {
+  if (!colorPickerTarget) return;
+  const { type, name } = colorPickerTarget;
+  if (type === 'cat') { categoryColors[name] = color; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); renderCatList(); }
+  else { compteColors[name] = color; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); renderCompteList(); }
+  sauvegarderTout();
+  closeColorPicker();
+}
+function triggerNativeColorPick() {
+  document.getElementById('cp-native-input').click();
+}
+function onNativeColorChange(color) {
+  if (!color) return;
+  if (!customColors.includes(color)) {
+    customColors = [color, ...customColors].slice(0, 8);
+    localStorage.setItem('budget_custom_colors', JSON.stringify(customColors));
+  }
+  selectColor(color);
+}
+document.addEventListener('click', e => {
+  const popup = document.getElementById('color-picker-popup');
+  if (popup && popup.classList.contains('open') && !popup.contains(e.target)) closeColorPicker();
+});
+
 // ── CATÉGORIES UI ──
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const SVG_DELETE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`;
@@ -663,11 +774,13 @@ function renderCatList() {
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCat(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCat()">✕</button>
     </li>`;
+    const ccolor = getCatColor(cat);
     return `<li class="cat-item" draggable="true" data-index="${i}"
       ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event,${i})"
       ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${cat}</span>
+      <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" onclick="openColorPicker('cat','${cat.replace(/'/g,"\\'")}',event)"></div>
       <button class="cat-delete" title="Modifier" onclick="startEditCat(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -685,6 +798,7 @@ function saveEditCat(i) {
   if (cats.includes(nouveau)) { showToast('Cette catégorie existe déjà','error'); return; }
   cats[i] = nouveau;
   depenses.forEach(d => { if (d.cat === ancien) d.cat = nouveau; });
+  if (categoryColors[ancien]) { categoryColors[nouveau] = categoryColors[ancien]; delete categoryColors[ancien]; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); }
   saveCategories(cats);
   editingCatIndex = null;
   renderCatList(); renderDepenses();
@@ -712,6 +826,7 @@ function supprimerCategorie(index) {
   const msg = used > 0 ? `"${nom}" est utilisée par ${used} dépense(s). Elles seront marquées inconnues. Continuer?` : `Supprimer "${nom}" ?`;
   if (!confirm(msg)) return;
   cats.splice(index, 1);
+  delete categoryColors[nom]; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors));
   saveCategories(cats);
   renderCatList();
   showToast(`"${nom}" supprimée`, 'info');
@@ -747,11 +862,13 @@ function renderCompteList() {
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCompte(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCompte()">✕</button>
     </li>`;
+    const cpcolor = getCompteColor(compte);
     return `<li class="cat-item" draggable="true" data-ci="${i}"
       ondragstart="onDragStartC(event,${i})" ondragover="onDragOverC(event,${i})"
       ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${compte}</span>
+      <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" onclick="openColorPicker('compte','${compte.replace(/'/g,"\\'")}',event)"></div>
       <button class="cat-delete" title="Modifier" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -770,6 +887,7 @@ function saveEditCompte(i) {
   comptes[i] = nouveau;
   depenses.forEach(d => { if (d.compte === ancien) d.compte = nouveau; });
   revenus.forEach(r => { if (r.compte === ancien) r.compte = nouveau; });
+  if (compteColors[ancien]) { compteColors[nouveau] = compteColors[ancien]; delete compteColors[ancien]; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); }
   saveComptes(comptes);
   editingCompteIndex = null;
   renderCompteList(); renderDepenses(); renderRevenus();
@@ -793,6 +911,7 @@ function supprimerCompte(index) {
   const msg = used > 0 ? `"${nom}" utilisé par ${used} entrée(s). Continuer?` : `Supprimer "${nom}" ?`;
   if (!confirm(msg)) return;
   comptes.splice(index, 1);
+  delete compteColors[nom]; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors));
   saveComptes(comptes); renderCompteList();
   showToast(`"${nom}" supprimé`,'info');
 }
@@ -836,6 +955,10 @@ async function chargerTout(showMsg=false) {
       localStorage.setItem('budget_comptes', JSON.stringify(data.comptes));
       refreshCompteSelects();
     }
+    // Couleurs
+    if (data.categoryColors) { categoryColors = data.categoryColors; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); }
+    if (data.compteColors) { compteColors = data.compteColors; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); }
+    if (data.customColors) { customColors = data.customColors; localStorage.setItem('budget_custom_colors', JSON.stringify(customColors)); }
     // Dépenses
     depenses = Array.isArray(data.depenses) ? data.depenses.map(mapDep) : [];
     // Revenus
@@ -891,7 +1014,7 @@ async function sauvegarderTout() {
     }));
     const catsData = getCategories();
     const comptesData = getComptes();
-    await window._fbSauvegarder(depData, revData, catsData, comptesData);
+    await window._fbSauvegarder(depData, revData, catsData, comptesData, categoryColors, compteColors, customColors);
     setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     showToast('Sauvegardé dans Firebase');
   } catch(e) {
