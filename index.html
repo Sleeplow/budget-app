@@ -237,8 +237,9 @@ window.dispatchEvent(new Event('fb-ready'));
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mes revenus (<span id="rev-count">0</span>)</div>
-        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:110px;">
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes revenus (<span id="rev-count">0</span>)</div>
+        <div style="flex:1;"></div>
+        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
           <option value="date">Date</option>
           <option value="desc">Description</option>
           <option value="montant">Montant</option>
@@ -279,8 +280,9 @@ window.dispatchEvent(new Event('fb-ready'));
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mes dépenses (<span id="dep-count">0</span>)</div>
-        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:110px;">
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <div style="flex:1;"></div>
+        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
           <option value="date">Date</option>
           <option value="desc">Description</option>
           <option value="montant">Montant</option>
