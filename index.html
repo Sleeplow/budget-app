@@ -237,15 +237,15 @@ window.dispatchEvent(new Event('fb-ready'));
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex:1;">Mes revenus (<span id="rev-count">0</span>)</div>
-        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+        <div class="section-title" style="margin-bottom:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mes revenus (<span id="rev-count">0</span>)</div>
+        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:110px;">
           <option value="date">Date</option>
           <option value="desc">Description</option>
           <option value="montant">Montant</option>
           <option value="freq">Fréquence</option>
           <option value="compte">Compte</option>
         </select>
-        <button id="rev-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;" onclick="toggleRevSortDir()" title="Inverser le tri">↑</button>
+        <button id="rev-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleRevSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
     </div>
@@ -279,8 +279,8 @@ window.dispatchEvent(new Event('fb-ready'));
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex:1;">Mes dépenses (<span id="dep-count">0</span>)</div>
-        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+        <div class="section-title" style="margin-bottom:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:110px;">
           <option value="date">Date</option>
           <option value="desc">Description</option>
           <option value="montant">Montant</option>
@@ -288,7 +288,7 @@ window.dispatchEvent(new Event('fb-ready'));
           <option value="cat">Catégorie</option>
           <option value="compte">Compte</option>
         </select>
-        <button id="dep-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;" onclick="toggleDepSortDir()" title="Inverser le tri">↑</button>
+        <button id="dep-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleDepSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
     </div>
