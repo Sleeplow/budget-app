@@ -133,6 +133,8 @@
     .metrics-grid { grid-template-columns: 1fr 1fr; }
     .metrics-grid .metric:last-child { grid-column: span 2; }
     table { font-size: 12px; } td, th { padding: 6px 4px; }
+    .an-main-grid { grid-template-columns: 1fr !important; }
+    .an-bottom-grid { grid-template-columns: 1fr !important; }
   }
 </style>
 <script type="module">
@@ -180,12 +182,58 @@ window.dispatchEvent(new Event('fb-ready'));
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
+    <button class="tab" onclick="showTab('transactions', this)">Transactions</button>
     <button class="tab" onclick="showTab('revenus', this)">Revenus</button>
     <button class="tab" onclick="showTab('depenses', this)">Dépenses</button>
   </div>
 
-  <!-- TABLEAU DE BORD -->
+  <!-- ANALYTIQUE (tableau de bord) -->
   <div id="tab-tableau-bord" class="section active">
+    <div class="metrics-grid" style="margin-bottom:1rem;">
+      <div class="metric">
+        <div class="metric-label">Flux net / mois</div>
+        <div class="metric-value" id="an-flux-net">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Revenus / mois</div>
+        <div class="metric-value positive" id="an-rev-mois">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Dépenses / mois</div>
+        <div class="metric-value negative" id="an-dep-mois">—</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem;" class="an-main-grid">
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Projection 6 mois</div>
+        <canvas id="chart-projection" height="160"></canvas>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Top 5 dépenses</div>
+        <div id="an-top5"><div class="empty-state">—</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="section-title">Répartition par catégorie</div>
+      <div id="an-cats"><div class="empty-state">—</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;" class="an-bottom-grid">
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Par compte</div>
+        <div id="an-comptes"><div class="empty-state">—</div></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Insights</div>
+        <div id="an-insights"><div class="empty-state">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS -->
+  <div id="tab-transactions" class="section">
     <div class="card" style="margin-bottom:1rem;">
       <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:flex-start;">
         <div style="flex:1;min-width:220px;">
@@ -427,6 +475,7 @@ window.dispatchEvent(new Event('fb-ready'));
 </div>
 <div id="toast" class="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // ── ÉTAT ──
 let depenses = [];
@@ -486,6 +535,7 @@ const FREQ_LABELS = { unique:'Unique', hebdo:'Hebdo.', bihebdo:'Aux 2 sem.', men
 const FREQ_MAP = {};
 Object.entries(FREQ_LABELS).forEach(([k,v]) => { FREQ_MAP[k]=k; FREQ_MAP[v.toLowerCase()]=k; });
 const FREQS = ['unique','hebdo','bihebdo','mensuel','bimensuel','trimestriel','annuel'];
+const FREQ_MULTIPLIER = { unique:0, hebdo:52/12, bihebdo:26/12, mensuel:1, bimensuel:0.5, trimestriel:1/3, annuel:1/12 };
 
 // ── CATÉGORIES ──
 function getCategories() {
@@ -737,6 +787,7 @@ function rgbToHsv(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math
 
 // ── CUSTOM COLOR MODAL ──
 let cpH=210,cpS=70,cpV=80,cpSvDrag=false,cpHueDrag=false,cpInited=false;
+let projectionChart = null;
 
 function renderCpSv(){
   const c=document.getElementById('cp-sv-canvas');if(!c)return;
@@ -1019,7 +1070,7 @@ async function resetApp() {
   if (!confirm('Dernière confirmation — toutes les données seront effacées de Firebase.')) return;
   depenses=[]; revenus=[];
   fermerParametres();
-  renderDepenses(); renderRevenus(); updateDashboard();
+  renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
   await sauvegarderTout();
   showToast('App réinitialisée','info');
 }
@@ -1051,7 +1102,7 @@ async function chargerTout(showMsg=false) {
     // Revenus
     revenus = Array.isArray(data.revenus) ? data.revenus.map(mapRev) : [];
     setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard();
+    renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
     if(showMsg) showToast('Données synchronisées !');
   } catch(e) {
     console.error('chargerTout erreur:', e);
@@ -1120,7 +1171,8 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
-  if (id==='tableau-bord') updateDashboard();
+  if (id==='tableau-bord') updateAnalytics();
+  if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
   if (id==='revenus') { editingRevId=null; renderRevenus(); }
 }
@@ -1510,7 +1562,7 @@ function confirmerImport() {
   importPreviewData=null;
   document.getElementById('import-preview-zone').innerHTML='';
   document.getElementById('import-file').value='';
-  renderDepenses(); renderRevenus(); updateDashboard();
+  renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
   sauvegarderTout();
   showToast(`Import : dép. ${dAdded}+${dUpdated}, rev. ${rAdded}+${rUpdated}`);
 }
@@ -1654,6 +1706,203 @@ function updateDashboard() {
   }
 }
 
+
+// ── ANALYTIQUE ──
+function updateAnalytics() {
+  const totalRevMensuel = revenus.reduce((s, r) => s + r.montant * (FREQ_MULTIPLIER[r.freq] || 0), 0);
+  const totalDepMensuel = depenses.reduce((s, d) => s + d.montant * (FREQ_MULTIPLIER[d.freq] || 0), 0);
+  const fluxNet = totalRevMensuel - totalDepMensuel;
+
+  // Métriques
+  const netEl = document.getElementById('an-flux-net');
+  if (netEl) {
+    netEl.textContent = (fluxNet >= 0 ? '+' : '') + '$' + fluxNet.toFixed(2);
+    netEl.className = 'metric-value ' + (fluxNet >= 0 ? 'positive' : 'negative');
+  }
+  const revEl = document.getElementById('an-rev-mois');
+  if (revEl) revEl.textContent = '+$' + totalRevMensuel.toFixed(2);
+  const depEl = document.getElementById('an-dep-mois');
+  if (depEl) depEl.textContent = '-$' + totalDepMensuel.toFixed(2);
+
+  // Répartition par catégorie
+  const catTotals = {};
+  depenses.forEach(d => {
+    const monthly = d.montant * (FREQ_MULTIPLIER[d.freq] || 0);
+    if (monthly > 0) catTotals[d.cat] = (catTotals[d.cat] || 0) + monthly;
+  });
+  const maxCat = Math.max(...Object.values(catTotals), 1);
+  const catsEl = document.getElementById('an-cats');
+  if (catsEl) {
+    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) {
+      catsEl.innerHTML = '<div class="empty-state">Aucune dépense récurrente</div>';
+    } else {
+      catsEl.innerHTML = sorted.map(([cat, val]) => {
+        const color = getCatColor(cat);
+        const pct = (val / maxCat * 100).toFixed(0);
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:4px;">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <span style="background:${color};width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block;"></span>
+              ${cat}
+            </span>
+            <span style="color:var(--text2);white-space:nowrap;">$${val.toFixed(0)}/mois</span>
+          </div>
+          <div style="background:var(--bg3);border-radius:99px;height:6px;">
+            <div style="background:${color};width:${pct}%;height:100%;border-radius:99px;transition:width 0.3s;"></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Top 5 dépenses
+  const top5El = document.getElementById('an-top5');
+  if (top5El) {
+    const sorted = [...depenses].map(d => ({ ...d, monthly: d.montant * (FREQ_MULTIPLIER[d.freq] || 0) }))
+      .filter(d => d.monthly > 0)
+      .sort((a, b) => b.monthly - a.monthly)
+      .slice(0, 5);
+    if (sorted.length === 0) {
+      top5El.innerHTML = '<div class="empty-state">Aucune dépense</div>';
+    } else {
+      top5El.innerHTML = sorted.map((d, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:13px;">
+          <span style="color:var(--text3);min-width:14px;font-weight:500;text-align:right;">${i+1}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.desc}">${d.desc}</span>
+          <span style="color:var(--red);font-weight:500;white-space:nowrap;">$${d.monthly.toFixed(0)}/m</span>
+        </div>`).join('');
+    }
+  }
+
+  // Par compte
+  const compteRevTotals = {}, compteDepTotals = {};
+  revenus.forEach(r => {
+    const monthly = r.montant * (FREQ_MULTIPLIER[r.freq] || 0);
+    const c = r.compte || '—';
+    compteRevTotals[c] = (compteRevTotals[c] || 0) + monthly;
+  });
+  depenses.forEach(d => {
+    const monthly = d.montant * (FREQ_MULTIPLIER[d.freq] || 0);
+    const c = d.compte || '—';
+    compteDepTotals[c] = (compteDepTotals[c] || 0) + monthly;
+  });
+  const allComptes = [...new Set([...Object.keys(compteRevTotals), ...Object.keys(compteDepTotals)])];
+  const comptesEl = document.getElementById('an-comptes');
+  if (comptesEl) {
+    if (allComptes.length === 0) {
+      comptesEl.innerHTML = '<div class="empty-state">Aucune donnée</div>';
+    } else {
+      comptesEl.innerHTML = allComptes.map(cp => {
+        const rev = compteRevTotals[cp] || 0;
+        const dep = compteDepTotals[cp] || 0;
+        const net = rev - dep;
+        const isValid = getComptes().includes(cp);
+        const color = isValid ? getCompteColor(cp) : null;
+        const badge = color
+          ? `<span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:99px;">${cp}</span>`
+          : `<span style="font-size:12px;color:var(--text2);">${cp}</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;flex-wrap:wrap;gap:4px;">
+          ${badge}
+          <div style="display:flex;gap:10px;">
+            <span style="color:var(--green);">+$${rev.toFixed(0)}</span>
+            <span style="color:var(--red);">-$${dep.toFixed(0)}</span>
+            <span style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:500;">=$${net.toFixed(0)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Insights
+  const insightsEl = document.getElementById('an-insights');
+  if (insightsEl) {
+    const insights = [];
+    if (totalRevMensuel === 0 && totalDepMensuel === 0) {
+      insightsEl.innerHTML = '<div class="empty-state">Ajoute des revenus et dépenses pour voir des insights.</div>';
+    } else {
+      if (fluxNet > 0) insights.push({ color: 'var(--green)', text: `Tu épargnes <strong>$${fluxNet.toFixed(0)}/mois</strong> net.` });
+      else if (fluxNet < 0) insights.push({ color: 'var(--red)', text: `Tu dépenses <strong>$${Math.abs(fluxNet).toFixed(0)}/mois</strong> de plus que tu gagnes.` });
+      if (totalRevMensuel > 0) {
+        const ratio = totalDepMensuel / totalRevMensuel * 100;
+        const color = ratio > 100 ? 'var(--red)' : ratio > 80 ? 'var(--amber)' : 'var(--text)';
+        insights.push({ color, text: `Taux de dépenses : <strong>${ratio.toFixed(0)}%</strong> de tes revenus.` });
+      }
+      const topCat = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+      if (topCat) insights.push({ color: 'var(--text2)', text: `Catégorie principale : <strong>${topCat[0]}</strong> ($${topCat[1].toFixed(0)}/mois).` });
+      const annualSavings = fluxNet * 12;
+      if (annualSavings !== 0) insights.push({ color: 'var(--text2)', text: `Projection annuelle : <strong style="color:${annualSavings>=0?'var(--green)':'var(--red)'};">${annualSavings>=0?'+':''} $${annualSavings.toFixed(0)}</strong>.` });
+      insightsEl.innerHTML = insights.map(i =>
+        `<div style="padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px;color:${i.color};line-height:1.5;">${i.text}</div>`
+      ).join('');
+    }
+  }
+
+  // Projection 6 mois
+  updateProjectionChart(fluxNet);
+}
+
+function updateProjectionChart(fluxNetMensuel) {
+  const canvas = document.getElementById('chart-projection');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const soldesComptes = getSoldesComptes();
+  const soldeVals = Object.values(soldesComptes).filter(v => !isNaN(v));
+  const soldeInit = soldeVals.length > 0 ? soldeVals.reduce((s, v) => s + v, 0) : 0;
+
+  const labels = [], data = [];
+  const now = new Date();
+  let balance = soldeInit;
+  for (let i = 0; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    labels.push(d.toLocaleString('fr-CA', { month: 'short', year: '2-digit' }));
+    data.push(parseFloat(balance.toFixed(2)));
+    balance += fluxNetMensuel;
+  }
+
+  if (projectionChart) { projectionChart.destroy(); projectionChart = null; }
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const textColor = isDark ? '#aeaeb2' : '#6b6b6b';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const lineColor = fluxNetMensuel >= 0 ? '#1D9E75' : '#E24B4A';
+
+  projectionChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: lineColor,
+        backgroundColor: lineColor + '22',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: lineColor,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(2) }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 } }
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 }, callback: v => '$' + v.toFixed(0) }
+        }
+      }
+    }
+  });
+}
 
 // ── INIT ──
 demarrerApp();
