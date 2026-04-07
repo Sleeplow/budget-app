@@ -655,7 +655,7 @@ function renderCatList() {
       ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${cat}</span>
-      <button class="cat-delete" onclick="supprimerCategorie(${i})">×</button>
+      <button class="cat-delete" onclick="supprimerCategorie(${i})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
     </li>`;
   }).join('');
 }
@@ -714,7 +714,7 @@ function renderCompteList() {
       ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${compte}</span>
-      <button class="cat-delete" onclick="supprimerCompte(${i})">×</button>
+      <button class="cat-delete" onclick="supprimerCompte(${i})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
     </li>`).join('');
 }
 function ajouterCompte() {
