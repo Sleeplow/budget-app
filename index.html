@@ -903,18 +903,17 @@ function renderRevenus() {
     const compteRevValid=isCompteValid(r.compte);
     const compteBadgeRev=r.compte?(compteRevValid?`<span class="compte-badge">${r.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<div class="entry-card">
-      <div class="entry-card-desc">${r.desc}</div>
+      <div class="entry-card-row" style="margin-bottom:6px;">
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${r.desc}</span>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})">✏</button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerRevenu(${r.id})">✕</button>
+      </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</span>
         <span style="color:var(--text2);">${formatDate(r.date)}</span>
         <span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span>
       </div>
-      <div class="entry-card-row">
-        ${compteBadgeRev}
-        <span style="flex:1;"></span>
-        <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
-      </div>
+      <div class="entry-card-row">${compteBadgeRev}</div>
     </div>`;
   }).join('');
   el.innerHTML=cards;
@@ -997,19 +996,17 @@ function renderDepenses() {
     const compteDepValid=isCompteValid(d.compte);
     const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge">${d.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<div class="entry-card">
-      <div class="entry-card-desc">${d.desc}</div>
+      <div class="entry-card-row" style="margin-bottom:6px;">
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${d.desc}</span>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})">✏</button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerDepense(${d.id})">✕</button>
+      </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--red);">-$${d.montant.toFixed(2)}</span>
         <span style="color:var(--text2);">${formatDate(d.date)}</span>
         <span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span>
       </div>
-      <div class="entry-card-row">
-        ${catBadge}
-        ${compteBadgeDep}
-        <span style="flex:1;"></span>
-        <button class="btn-row-icon" onclick="startEdit(${d.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
-      </div>
+      <div class="entry-card-row">${catBadge}${compteBadgeDep}</div>
     </div>`;
   }).join('');
   el.innerHTML=cards;
