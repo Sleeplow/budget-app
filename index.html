@@ -400,6 +400,23 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 
+<div id="custom-color-modal" class="modal-overlay" style="z-index:400;">
+  <div class="modal" style="max-width:300px;width:100%;">
+    <h2 style="font-size:15px;">Couleur personnalisée</h2>
+    <canvas id="cp-sv-canvas" width="260" height="160" style="width:100%;border-radius:6px;cursor:crosshair;display:block;touch-action:none;"></canvas>
+    <canvas id="cp-hue-canvas" width="260" height="18" style="width:100%;border-radius:99px;cursor:pointer;display:block;margin-top:10px;touch-action:none;"></canvas>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-top:12px;">
+      <div class="form-group"><label>Hex</label><input type="text" id="cp-hex" maxlength="7" placeholder="#000000" oninput="onCpHexChange(this.value)" style="font-family:monospace;font-size:13px;"></div>
+      <div class="form-group"><label>R</label><input type="number" id="cp-r" min="0" max="255" oninput="onCpRgbChange()"></div>
+      <div class="form-group"><label>G</label><input type="number" id="cp-g" min="0" max="255" oninput="onCpRgbChange()"></div>
+      <div class="form-group"><label>B</label><input type="number" id="cp-b" min="0" max="255" oninput="onCpRgbChange()"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn btn-cancel" onclick="closeCustomColorModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="applyCustomColor()">Appliquer</button>
+    </div>
+  </div>
+</div>
 <div id="color-picker-popup" class="color-picker-popup">
   <div class="cp-label">Palette</div>
   <div class="cp-palette" id="cp-palette-grid"></div>
@@ -407,7 +424,6 @@ window.dispatchEvent(new Event('fb-ready'));
   <div class="cp-custom-row" id="cp-custom-row">
     <button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>
   </div>
-  <input type="color" id="cp-native-input" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;" oninput="onNativeColorChange(this.value)">
 </div>
 <div id="toast" class="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -712,6 +728,77 @@ function ouvrirParametres() {
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
 function fermerModalSiOverlay(e) { if (e.target === document.getElementById('modal-params')) fermerParametres(); }
 
+// ── COLOR CONVERSION ──
+function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return[r,g,b];}
+function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');}
+function hsvToRgb(h,s,v){s/=100;v/=100;const i=Math.floor(h/60)%6,f=h/60-Math.floor(h/60),p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);const[r,g,b]=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i];return[Math.round(r*255),Math.round(g*255),Math.round(b*255)];}
+function hsvToHex(h,s,v){return rgbToHex(...hsvToRgb(h,s,v));}
+function rgbToHsv(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0,s=max?d/max:0,vv=max;if(d){if(max===r)h=((g-b)/d+6)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return[Math.round(h),Math.round(s*100),Math.round(vv*100)];}
+
+// ── CUSTOM COLOR MODAL ──
+let cpH=210,cpS=70,cpV=80,cpSvDrag=false,cpHueDrag=false,cpInited=false;
+
+function renderCpSv(){
+  const c=document.getElementById('cp-sv-canvas');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const[hr,hg,hb]=hsvToRgb(cpH,100,100);
+  const gH=ctx.createLinearGradient(0,0,w,0);gH.addColorStop(0,'#fff');gH.addColorStop(1,`rgb(${hr},${hg},${hb})`);
+  ctx.fillStyle=gH;ctx.fillRect(0,0,w,h);
+  const gV=ctx.createLinearGradient(0,0,0,h);gV.addColorStop(0,'rgba(0,0,0,0)');gV.addColorStop(1,'#000');
+  ctx.fillStyle=gV;ctx.fillRect(0,0,w,h);
+  const x=cpS/100*w,y=(1-cpV/100)*h;
+  ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,0.4)';ctx.lineWidth=1;ctx.stroke();
+}
+function renderCpHue(){
+  const c=document.getElementById('cp-hue-canvas');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const g=ctx.createLinearGradient(0,0,w,0);
+  for(let i=0;i<=360;i+=30)g.addColorStop(i/360,`hsl(${i},100%,50%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  const x=cpH/360*w;
+  ctx.beginPath();ctx.arc(x,h/2,h/2-1,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(x,h/2,h/2,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=1;ctx.stroke();
+}
+function updateCpInputs(){
+  const hex=hsvToHex(cpH,cpS,cpV);const[r,g,b]=hexToRgb(hex);
+  const hEl=document.getElementById('cp-hex');if(hEl)hEl.value=hex;
+  const rEl=document.getElementById('cp-r');if(rEl)rEl.value=r;
+  const gEl=document.getElementById('cp-g');if(gEl)gEl.value=g;
+  const bEl=document.getElementById('cp-b');if(bEl)bEl.value=b;
+}
+function initCpEvents(){
+  if(cpInited)return;cpInited=true;
+  const sv=document.getElementById('cp-sv-canvas');
+  const hue=document.getElementById('cp-hue-canvas');
+  function svPos(e){const r=sv.getBoundingClientRect(),cl=e.touches?e.touches[0]:e;cpS=Math.round(Math.max(0,Math.min(1,(cl.clientX-r.left)/r.width))*100);cpV=Math.round(Math.max(0,Math.min(1,1-(cl.clientY-r.top)/r.height))*100);renderCpSv();updateCpInputs();}
+  function huePos(e){const r=hue.getBoundingClientRect(),cl=e.touches?e.touches[0]:e;cpH=Math.round(Math.max(0,Math.min(360,(cl.clientX-r.left)/r.width*360)));renderCpSv();renderCpHue();updateCpInputs();}
+  sv.addEventListener('mousedown',e=>{cpSvDrag=true;svPos(e);});
+  sv.addEventListener('mousemove',e=>{if(cpSvDrag)svPos(e);});
+  sv.addEventListener('touchstart',e=>{e.preventDefault();svPos(e);},{passive:false});
+  sv.addEventListener('touchmove',e=>{e.preventDefault();svPos(e);},{passive:false});
+  hue.addEventListener('mousedown',e=>{cpHueDrag=true;huePos(e);});
+  hue.addEventListener('mousemove',e=>{if(cpHueDrag)huePos(e);});
+  hue.addEventListener('touchstart',e=>{e.preventDefault();huePos(e);},{passive:false});
+  hue.addEventListener('touchmove',e=>{e.preventDefault();huePos(e);},{passive:false});
+  document.addEventListener('mouseup',()=>{cpSvDrag=false;cpHueDrag=false;});
+}
+function openCustomColorModal(initialColor){
+  const col=initialColor||'#1D9E75';
+  const[r,g,b]=hexToRgb(col);[cpH,cpS,cpV]=rgbToHsv(r,g,b);
+  document.getElementById('custom-color-modal').classList.add('open');
+  setTimeout(()=>{initCpEvents();renderCpSv();renderCpHue();updateCpInputs();},30);
+}
+function closeCustomColorModal(){document.getElementById('custom-color-modal').classList.remove('open');}
+function applyCustomColor(){
+  const hex=hsvToHex(cpH,cpS,cpV);
+  if(!customColors.includes(hex)){customColors=[hex,...customColors].slice(0,8);localStorage.setItem('budget_custom_colors',JSON.stringify(customColors));}
+  closeCustomColorModal();
+  selectColor(hex);
+}
+function onCpHexChange(val){if(!/^#[0-9A-Fa-f]{6}$/.test(val))return;const[r,g,b]=hexToRgb(val);[cpH,cpS,cpV]=rgbToHsv(r,g,b);renderCpSv();renderCpHue();updateCpInputs();}
+function onCpRgbChange(){const r=parseInt(document.getElementById('cp-r').value)||0,g=parseInt(document.getElementById('cp-g').value)||0,b=parseInt(document.getElementById('cp-b').value)||0;[cpH,cpS,cpV]=rgbToHsv(r,g,b);renderCpSv();renderCpHue();document.getElementById('cp-hex').value=rgbToHex(r,g,b);}
+
 // ── COLOR PICKER ──
 function openColorPicker(type, name, event) {
   event.stopPropagation();
@@ -748,15 +835,11 @@ function selectColor(color) {
   closeColorPicker();
 }
 function triggerNativeColorPick() {
-  document.getElementById('cp-native-input').click();
-}
-function onNativeColorChange(color) {
-  if (!color) return;
-  if (!customColors.includes(color)) {
-    customColors = [color, ...customColors].slice(0, 8);
-    localStorage.setItem('budget_custom_colors', JSON.stringify(customColors));
-  }
-  selectColor(color);
+  const current = colorPickerTarget
+    ? (colorPickerTarget.type==='cat' ? getCatColor(colorPickerTarget.name) : getCompteColor(colorPickerTarget.name))
+    : '#1D9E75';
+  closeColorPicker();
+  openCustomColorModal(current);
 }
 document.addEventListener('click', e => {
   const popup = document.getElementById('color-picker-popup');
