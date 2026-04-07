@@ -873,38 +873,56 @@ function renderRevenus() {
   document.getElementById('rev-count').textContent=revenus.length;
   const el=document.getElementById('rev-list-container');
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
-  const sorted=[...revenus].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=sorted.map(r=>{
-    if (editingRevId===r.id) {
-      const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="redit-freq-${r.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="redit-compte-${r.id}" style="width:110px;">${coRev}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEditRev()">Annuler</button>
+
+  // Trier par compte puis par date
+  const sorted=[...revenus].sort((a,b)=>{
+    const cmp=(a.compte||'').localeCompare(b.compte||'');
+    return cmp!==0?cmp:a.date.localeCompare(b.date);
+  });
+
+  // Grouper par compte
+  const groups={};
+  sorted.forEach(r=>{ const k=r.compte||'(sans compte)'; if(!groups[k])groups[k]=[]; groups[k].push(r); });
+
+  let html='';
+  Object.entries(groups).forEach(([compte, items], gi)=>{
+    const compteValid=isCompteValid(compte);
+    const badgeStyle=compteValid?'':'background:rgba(226,75,74,0.12);color:var(--red);';
+    html+=`<div style="padding:5px 8px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg2);border-radius:var(--radius-sm);margin-top:${gi===0?'0':'12px'};margin-bottom:4px;">
+      <span class="compte-badge" style="${badgeStyle}">${compte}${compteValid?'':' ⚠'}</span>
+    </div>`;
+
+    const rows=items.map(r=>{
+      if (editingRevId===r.id) {
+        const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
+        const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
+        return `<tr class="editing-row">
+          <td style="width:100%;"><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;min-width:0;box-sizing:border-box;"></td>
+          <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:80px;"></td>
+          <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:120px;"></td>
+          <td><select class="inline-edit" id="redit-freq-${r.id}">${fo}</select></td>
+          <td><select class="inline-edit" id="redit-compte-${r.id}">${coRev}</select></td>
+          <td style="white-space:nowrap;"><div class="edit-actions">
+            <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 8px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
+            <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 8px;" onclick="cancelEditRev()">Annuler</button>
+          </div></td>
+        </tr>`;
+      }
+      return `<tr>
+        <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;width:100%;">${r.desc}</td>
+        <td style="font-weight:500;color:var(--green);white-space:nowrap;">+$${r.montant.toFixed(2)}</td>
+        <td style="white-space:nowrap;">${formatDate(r.date)}</td>
+        <td><span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span></td>
+        <td style="white-space:nowrap;"><div class="edit-actions">
+          <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
+          <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
         </div></td>
       </tr>`;
-    }
-    const compteRevValid = isCompteValid(r.compte);
-    const compteBadgeRev = r.compte ? (compteRevValid ? `<span class="compte-badge">${r.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<tr>
-      <td>${r.desc}</td>
-      <td style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</td>
-      <td>${formatDate(r.date)}</td>
-      <td><span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span></td>
-      <td>${compteBadgeRev}</td>
-      <td><div class="edit-actions">
-        <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).join('');
+
+    html+=`<table style="width:100%;table-layout:fixed;"><thead><tr><th>Description</th><th style="width:90px;">Montant</th><th style="width:90px;">Date</th><th style="width:80px;">Fréquence</th><th style="width:120px;"></th></tr></thead><tbody>${rows}</tbody></table>`;
+  });
+  el.innerHTML=html;
 }
 
 // ── DÉPENSES CRUD ──
@@ -953,46 +971,63 @@ function renderDepenses() {
   const el=document.getElementById('dep-list-container');
   if (!depenses.length) { el.innerHTML='<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
   const cats=getCategories();
-  const sorted=[...depenses].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=sorted.map(d => {
-    const orphan=!isCatValid(d.cat);
-    if (editingId===d.id) {
-      const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
-      const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
-      const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="edit-freq-${d.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:120px;">${orphanOpt}${co}</select></td>
-        <td><select class="inline-edit" id="edit-compte-${d.id}" style="width:110px;">${compteOptsDep}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEdit()">Annuler</button>
+
+  // Trier par catégorie puis par date
+  const sorted=[...depenses].sort((a,b)=>{
+    const cmp=(a.cat||'').localeCompare(b.cat||'');
+    return cmp!==0?cmp:a.date.localeCompare(b.date);
+  });
+
+  // Grouper par catégorie
+  const groups={};
+  sorted.forEach(d=>{ const k=d.cat||'(sans catégorie)'; if(!groups[k])groups[k]=[]; groups[k].push(d); });
+
+  let html='';
+  Object.entries(groups).forEach(([cat, items], gi)=>{
+    const catValid=isCatValid(cat);
+    const badgeStyle=catValid?'background:#EAF3DE;color:#3B6D11;':'background:rgba(226,75,74,0.12);color:var(--red);';
+    html+=`<div style="padding:5px 8px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg2);border-radius:var(--radius-sm);margin-top:${gi===0?'0':'12px'};margin-bottom:4px;">
+      <span class="badge" style="${badgeStyle}">${cat}${catValid?'':' ⚠'}</span>
+    </div>`;
+
+    const rows=items.map(d=>{
+      const orphan=!isCatValid(d.cat);
+      if (editingId===d.id) {
+        const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
+        const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
+        const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
+        const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
+        return `<tr class="editing-row">
+          <td style="width:100%;"><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" style="width:100%;min-width:0;box-sizing:border-box;"></td>
+          <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:80px;"></td>
+          <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:120px;"></td>
+          <td><select class="inline-edit" id="edit-freq-${d.id}">${fo}</select></td>
+          <td><select class="inline-edit" id="edit-cat-${d.id}">${orphanOpt}${co}</select></td>
+          <td><select class="inline-edit" id="edit-compte-${d.id}">${compteOptsDep}</select></td>
+          <td style="white-space:nowrap;"><div class="edit-actions">
+            <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 8px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
+            <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 8px;" onclick="cancelEdit()">Annuler</button>
+          </div></td>
+        </tr>`;
+      }
+      const compteDepValid=isCompteValid(d.compte);
+      const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge">${d.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
+      return `<tr>
+        <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;width:100%;">${d.desc}</td>
+        <td style="font-weight:500;white-space:nowrap;">-$${d.montant.toFixed(2)}</td>
+        <td style="white-space:nowrap;">${formatDate(d.date)}</td>
+        <td><span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span></td>
+        <td>${compteBadgeDep}</td>
+        <td style="white-space:nowrap;"><div class="edit-actions">
+          <button class="btn-row-icon" onclick="startEdit(${d.id})">Modifier</button>
+          <button class="btn-row-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
         </div></td>
       </tr>`;
-    }
-    const catBadge=orphan
-      ?`<span class="badge badge-orphan" title="Catégorie inconnue — cliquez Modifier pour corriger">${d.cat||'(vide)'} ⚠</span>`
-      :`<span style="color:var(--text2);">${d.cat}</span>`;
-    const compteDepValid = isCompteValid(d.compte);
-    const compteBadgeDep = d.compte ? (compteDepValid ? `<span class="compte-badge">${d.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<tr>
-      <td>${d.desc}</td>
-      <td style="font-weight:500;">-$${d.montant.toFixed(2)}</td>
-      <td>${formatDate(d.date)}</td>
-      <td><span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span></td>
-      <td>${catBadge}</td>
-      <td>${compteBadgeDep}</td>
-      <td><div class="edit-actions">
-        <button class="btn-row-icon" onclick="startEdit(${d.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Catégorie</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).join('');
+
+    html+=`<table style="width:100%;table-layout:fixed;"><thead><tr><th>Description</th><th style="width:90px;">Montant</th><th style="width:90px;">Date</th><th style="width:75px;">Fréquence</th><th style="width:95px;">Compte</th><th style="width:120px;"></th></tr></thead><tbody>${rows}</tbody></table>`;
+  });
+  el.innerHTML=html;
 }
 
 // ── EXCEL EXPORT ──
