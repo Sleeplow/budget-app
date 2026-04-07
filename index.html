@@ -953,7 +953,7 @@ function renderRevenus() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${r.desc}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})">✏</button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerRevenu(${r.id})">✕</button>
       </div>
       <div class="entry-card-row">
@@ -1048,7 +1048,7 @@ function renderDepenses() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${d.desc}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})">✏</button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerDepense(${d.id})">✕</button>
       </div>
       <div class="entry-card-row">
