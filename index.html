@@ -236,8 +236,16 @@ window.dispatchEvent(new Event('fb-ready'));
       <button class="btn btn-green" onclick="ajouterRevenu()">+ Ajouter</button>
     </div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;">Mes revenus (<span id="rev-count">0</span>)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="section-title" style="margin-bottom:0;flex:1;">Mes revenus (<span id="rev-count">0</span>)</div>
+        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+          <option value="date">Date</option>
+          <option value="desc">Description</option>
+          <option value="montant">Montant</option>
+          <option value="freq">Fréquence</option>
+          <option value="compte">Compte</option>
+        </select>
+        <button id="rev-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;" onclick="toggleRevSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
     </div>
@@ -270,8 +278,17 @@ window.dispatchEvent(new Event('fb-ready'));
       <button class="btn btn-primary" onclick="ajouterDepense()">+ Ajouter</button>
     </div>
     <div class="card">
-      <div style="margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;">Mes dépenses (<span id="dep-count">0</span>)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="section-title" style="margin-bottom:0;flex:1;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+          <option value="date">Date</option>
+          <option value="desc">Description</option>
+          <option value="montant">Montant</option>
+          <option value="freq">Fréquence</option>
+          <option value="cat">Catégorie</option>
+          <option value="compte">Compte</option>
+        </select>
+        <button id="dep-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;" onclick="toggleDepSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
     </div>
@@ -371,6 +388,8 @@ let depenses = [];
 let revenus = [];
 let editingId = null;
 let editingRevId = null;
+let revSort = { field: 'date', asc: true };
+let depSort = { field: 'date', asc: true };
 let importPreviewData = null;
 let isSaving = false;
 let dragSrcIndex = null;
@@ -875,11 +894,38 @@ function supprimerRevenu(id) {
   sauvegarderTout();
 }
 
+function sortItems(items, sort, fields) {
+  return [...items].sort((a, b) => {
+    let va = a[sort.field] ?? '';
+    let vb = b[sort.field] ?? '';
+    const cmp = typeof va === 'number'
+      ? va - vb
+      : String(va).localeCompare(String(vb));
+    return sort.asc ? cmp : -cmp;
+  });
+}
+function onRevSortChange() {
+  revSort.field = document.getElementById('rev-sort-field').value;
+  renderRevenus();
+}
+function toggleRevSortDir() {
+  revSort.asc = !revSort.asc;
+  renderRevenus();
+}
+function onDepSortChange() {
+  depSort.field = document.getElementById('dep-sort-field').value;
+  renderDepenses();
+}
+function toggleDepSortDir() {
+  depSort.asc = !depSort.asc;
+  renderDepenses();
+}
+
 function renderRevenus() {
   document.getElementById('rev-count').textContent=revenus.length;
   const el=document.getElementById('rev-list-container');
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
-  const sorted=[...revenus].sort((a,b)=>a.date.localeCompare(b.date));
+  const sorted=sortItems(revenus, revSort);
   const cards=sorted.map(r=>{
     if (editingRevId===r.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
@@ -917,6 +963,8 @@ function renderRevenus() {
     </div>`;
   }).join('');
   el.innerHTML=cards;
+  const dirBtn=document.getElementById('rev-sort-dir');
+  if(dirBtn) dirBtn.textContent=revSort.asc?'↑':'↓';
 }
 
 // ── DÉPENSES CRUD ──
@@ -965,7 +1013,7 @@ function renderDepenses() {
   const el=document.getElementById('dep-list-container');
   if (!depenses.length) { el.innerHTML='<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
   const cats=getCategories();
-  const sorted=[...depenses].sort((a,b)=>a.date.localeCompare(b.date));
+  const sorted=sortItems(depenses, depSort);
   const cards=sorted.map(d=>{
     const orphan=!isCatValid(d.cat);
     if (editingId===d.id) {
@@ -1010,6 +1058,8 @@ function renderDepenses() {
     </div>`;
   }).join('');
   el.innerHTML=cards;
+  const dirBtn=document.getElementById('dep-sort-dir');
+  if(dirBtn) dirBtn.textContent=depSort.asc?'↑':'↓';
 }
 
 // ── EXCEL EXPORT ──
