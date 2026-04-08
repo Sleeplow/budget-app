@@ -1304,7 +1304,7 @@ function saveEditRev(id) {
   const freq=document.getElementById('redit-freq-'+id).value;
   const compte=document.getElementById('redit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=revenus.findIndex(r=>r.id===id);
+  const idx=revenus.findIndex(r=>String(r.id)===id);
   if (idx!==-1) revenus[idx]={id,desc,montant,date,freq,compte};
   editingRevId=null; renderRevenus(); updateDashboard();
   sauvegarderTout();
@@ -1312,7 +1312,7 @@ function saveEditRev(id) {
 
 function supprimerRevenu(id) {
   if (!confirm('Supprimer ce revenu ?')) return;
-  revenus=revenus.filter(r=>r.id!==id);
+  revenus=revenus.filter(r=>String(r.id)!==id);
   if (editingRevId===id) editingRevId=null;
   renderRevenus(); updateDashboard();
   sauvegarderTout();
@@ -1351,7 +1351,7 @@ function renderRevenus() {
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
   const sorted=sortItems(revenus, revSort);
   const cards=sorted.map(r=>{
-    if (editingRevId===r.id) {
+    if (editingRevId===String(r.id)) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const coRev=getComptes().map(cp=>`<option value="${escapeHtml(cp)}" ${cp===r.compte?'selected':''}>${escapeHtml(cp)}</option>`).join('');
       return `<div class="entry-card editing">
@@ -1365,7 +1365,7 @@ function renderRevenus() {
           <select class="inline-edit" id="redit-compte-${r.id}" style="flex:1;min-width:120px;">${coRev}</select>
         </div>
         <div class="entry-card-row">
-          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
+          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" data-id="${escapeHtml(r.id)}" onclick="saveEditRev(this.dataset.id)">Sauvegarder</button>
           <button class="btn btn-cancel" style="height:30px;font-size:12px;padding:0 12px;" onclick="cancelEditRev()">Annuler</button>
         </div>
       </div>`;
@@ -1376,8 +1376,8 @@ function renderRevenus() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(r.desc)}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerRevenu(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" data-id="${escapeHtml(r.id)}" onclick="startEditRev(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" data-id="${escapeHtml(r.id)}" onclick="supprimerRevenu(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</span>
@@ -1419,7 +1419,7 @@ function saveEdit(id) {
   const cat=document.getElementById('edit-cat-'+id).value;
   const compte=document.getElementById('edit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=depenses.findIndex(d=>d.id===id);
+  const idx=depenses.findIndex(d=>String(d.id)===id);
   if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat,compte};
   editingId=null; renderDepenses(); updateDashboard();
   sauvegarderTout();
@@ -1427,7 +1427,7 @@ function saveEdit(id) {
 
 function supprimerDepense(id) {
   if (!confirm('Supprimer cette dépense ?')) return;
-  depenses=depenses.filter(d=>d.id!==id);
+  depenses=depenses.filter(d=>String(d.id)!==id);
   if (editingId===id) editingId=null;
   renderDepenses(); updateDashboard();
   sauvegarderTout();
@@ -1441,7 +1441,7 @@ function renderDepenses() {
   const sorted=sortItems(depenses, depSort);
   const cards=sorted.map(d=>{
     const orphan=!isCatValid(d.cat);
-    if (editingId===d.id) {
+    if (editingId===String(d.id)) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const orphanOpt=orphan?`<option value="${escapeHtml(d.cat)}" selected>${escapeHtml(d.cat)} (inconnu)</option>`:'';
       const co=cats.map(c=>`<option value="${escapeHtml(c)}" ${c===d.cat?'selected':''}>${escapeHtml(c)}</option>`).join('');
@@ -1458,7 +1458,7 @@ function renderDepenses() {
           <select class="inline-edit" id="edit-compte-${d.id}" style="flex:1;min-width:120px;">${compteOptsDep}</select>
         </div>
         <div class="entry-card-row">
-          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
+          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" data-id="${escapeHtml(d.id)}" onclick="saveEdit(this.dataset.id)">Sauvegarder</button>
           <button class="btn btn-cancel" style="height:30px;font-size:12px;padding:0 12px;" onclick="cancelEdit()">Annuler</button>
         </div>
       </div>`;
@@ -1473,8 +1473,8 @@ function renderDepenses() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(d.desc)}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerDepense(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" data-id="${escapeHtml(d.id)}" onclick="startEdit(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" data-id="${escapeHtml(d.id)}" onclick="supprimerDepense(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--red);">-$${d.montant.toFixed(2)}</span>
