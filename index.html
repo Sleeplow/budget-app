@@ -176,6 +176,12 @@ window._fbCharger = async function(uid) {
   return { depenses: [], revenus: [], categories: [], comptes: [], categoryColors: {}, compteColors: {}, customColors: [] };
 };
 
+window._fbChargerAnciennesData = async function() {
+  const snap = await getDoc(doc(db, 'budget', 'data'));
+  if (snap.exists()) return snap.data();
+  return null;
+};
+
 window._fbSauvegarder = async function(uid, depenses, revenus, categories, comptes, categoryColors, compteColors, customColors) {
   await setDoc(getDocRef(uid), { depenses, revenus, categories, comptes, categoryColors, compteColors, customColors });
 };
@@ -1130,7 +1136,30 @@ async function chargerTout(showMsg=false) {
     if (!window._fbReady) {
       await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
     }
-    const data = await window._fbCharger(currentUser.uid);
+    let data = await window._fbCharger(currentUser.uid);
+
+    // ── MIGRATION depuis l'ancien chemin budget/data ──
+    const estVide = !data.depenses?.length && !data.revenus?.length;
+    if (estVide) {
+      try {
+        const ancienData = await window._fbChargerAnciennesData();
+        if (ancienData && (ancienData.depenses?.length || ancienData.revenus?.length)) {
+          setSyncStatus('loading', 'Migration des données en cours...');
+          await window._fbSauvegarder(
+            currentUser.uid,
+            ancienData.depenses || [], ancienData.revenus || [],
+            ancienData.categories || [], ancienData.comptes || [],
+            ancienData.categoryColors || {}, ancienData.compteColors || {},
+            ancienData.customColors || []
+          );
+          data = ancienData;
+          showToast('Données migrées avec succès !', 'success');
+        }
+      } catch(migErr) {
+        console.warn('Migration ignorée :', migErr.message);
+      }
+    }
+
     // Catégories
     if (Array.isArray(data.categories) && data.categories.length > 0) {
       localStorage.setItem('budget_categories', JSON.stringify(data.categories));
