@@ -80,6 +80,9 @@
   .btn-cancel { background: none; color: var(--text2); border-color: var(--border); }
   .btn-icon-sm { height: 34px; width: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg); color: var(--text2); display: inline-flex; align-items: center; justify-content: center; }
   .btn-icon-sm:hover { background: var(--bg2); }
+  .btn-avatar { height: 34px; width: 34px; border: 0.5px solid var(--border2); border-radius: 50%; cursor: pointer; background: var(--bg3); color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; font-size: 14px; font-weight: 600; }
+  .btn-avatar:hover { opacity: 0.85; }
+  .btn-avatar img { width: 34px; height: 34px; object-fit: cover; }
   .btn-row-icon { height: 28px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); }
   .btn-row-icon.danger { color: var(--red); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -228,8 +231,11 @@ window.dispatchEvent(new Event('fb-ready'));
   <div class="app-top">
     <div class="app-header">
       <h1>Budget Personnel</h1>
-      <button class="btn-icon-sm" onclick="ouvrirParametres()" title="Paramètres">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <button class="btn-avatar" id="btn-user-avatar" onclick="ouvrirParametres()" title="Paramètres / compte">
+        <img id="user-photo" src="" alt="" style="display:none;">
+        <span id="user-initials">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
       </button>
     </div>
 
@@ -2030,6 +2036,20 @@ function setupAuth() {
       if (appEl) appEl.style.display = 'block';
       const userInfoEl = document.getElementById('modal-user-info');
       if (userInfoEl) userInfoEl.textContent = user.displayName ? user.displayName + ' · ' + user.email : user.email;
+      const photoEl = document.getElementById('user-photo');
+      const initialsEl = document.getElementById('user-initials');
+      if (photoEl && initialsEl) {
+        if (user.photoURL) {
+          photoEl.src = user.photoURL;
+          photoEl.style.display = 'block';
+          initialsEl.style.display = 'none';
+        } else {
+          const name = user.displayName || user.email || '?';
+          initialsEl.textContent = name[0].toUpperCase();
+          initialsEl.style.display = 'flex';
+          photoEl.style.display = 'none';
+        }
+      }
       demarrerApp();
     } else {
       if (loginScreen) loginScreen.style.display = 'flex';
