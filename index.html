@@ -136,11 +136,21 @@
     .an-main-grid { grid-template-columns: 1fr !important; }
     .an-bottom-grid { grid-template-columns: 1fr !important; }
   }
+  /* ── LOGIN ── */
+  #login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg3); }
+  .login-card { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius); padding:2.5rem 2rem; max-width:360px; width:100%; text-align:center; }
+  .login-card h1 { font-size:22px; font-weight:500; margin-bottom:6px; }
+  .login-card p { font-size:14px; color:var(--text2); margin-bottom:2rem; line-height:1.5; }
+  .btn-google { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; height:44px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); font-size:15px; cursor:pointer; transition:background 0.15s; }
+  .btn-google:hover { background:var(--bg2); }
+  .btn-google:disabled { opacity:0.55; cursor:not-allowed; }
+  #login-error { font-size:12px; color:var(--red); margin-top:12px; display:none; }
 </style>
 <script type="module">
 // ── FIREBASE CONFIG ──
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDIl2VJrGEOxEQNpct-oAXGa1q37A3S4a0",
@@ -153,16 +163,33 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-const DOC_REF = doc(db, 'budget', 'data');
+const auth = getAuth(firebaseApp);
+const provider = new GoogleAuthProvider();
 
-window._fbCharger = async function() {
-  const snap = await getDoc(DOC_REF);
+function getDocRef(uid) {
+  return doc(db, 'users', uid, 'budget', 'data');
+}
+
+window._fbCharger = async function(uid) {
+  const snap = await getDoc(getDocRef(uid));
   if (snap.exists()) return snap.data();
   return { depenses: [], revenus: [], categories: [], comptes: [], categoryColors: {}, compteColors: {}, customColors: [] };
 };
 
-window._fbSauvegarder = async function(depenses, revenus, categories, comptes, categoryColors, compteColors, customColors) {
-  await setDoc(DOC_REF, { depenses, revenus, categories, comptes, categoryColors, compteColors, customColors });
+window._fbSauvegarder = async function(uid, depenses, revenus, categories, comptes, categoryColors, compteColors, customColors) {
+  await setDoc(getDocRef(uid), { depenses, revenus, categories, comptes, categoryColors, compteColors, customColors });
+};
+
+window._fbLogin = async function() {
+  await signInWithPopup(auth, provider);
+};
+
+window._fbLogout = async function() {
+  await signOut(auth);
+};
+
+window._fbOnAuth = function(callback) {
+  onAuthStateChanged(auth, callback);
 };
 
 window._fbReady = true;
@@ -171,8 +198,21 @@ window.dispatchEvent(new Event('fb-ready'));
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Budget Personnel</h1>
+    <p>Connecte-toi pour accéder<br>à tes données.</p>
+    <button id="btn-google-login" class="btn-google" onclick="seConnecter()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continuer avec Google
+    </button>
+    <p id="login-error"></p>
+  </div>
+</div>
+
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none;">
   <div class="app-header">
     <h1>Budget Personnel</h1>
     <button class="btn-icon-sm" onclick="ouvrirParametres()" title="Paramètres">
@@ -381,9 +421,15 @@ window.dispatchEvent(new Event('fb-ready'));
     </h2>
 
     <div class="modal-section">
-      <div class="modal-section-title">Connexion Firebase</div>
-      <p class="modal-hint">Les données sont sauvegardées dans Firebase (budget-personnel-2fb22). La connexion est automatique.</p>
-      <div id="modal-sync-status" style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);">Statut : <span id="modal-sync-txt">—</span></div>
+      <div class="modal-section-title">Compte connecté</div>
+      <div style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);margin-bottom:8px;">
+        <span id="modal-user-info" style="word-break:break-all;">—</span>
+      </div>
+      <div id="modal-sync-status" style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);margin-bottom:8px;">Statut : <span id="modal-sync-txt">—</span></div>
+      <button class="btn btn-red" style="width:100%;justify-content:center;" onclick="seDeconnecter();fermerParametres();">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Se déconnecter
+      </button>
     </div>
 
     <div class="modal-section">
@@ -478,6 +524,7 @@ window.dispatchEvent(new Event('fb-ready'));
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // ── ÉTAT ──
+let currentUser = null;
 let depenses = [];
 let revenus = [];
 let editingId = null;
@@ -1077,12 +1124,13 @@ async function resetApp() {
 
 // ── GOOGLE SHEETS ──
 async function chargerTout(showMsg=false) {
+  if (!currentUser) return;
   setSyncStatus('loading','Chargement depuis Firebase...');
   try {
     if (!window._fbReady) {
       await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
     }
-    const data = await window._fbCharger();
+    const data = await window._fbCharger(currentUser.uid);
     // Catégories
     if (Array.isArray(data.categories) && data.categories.length > 0) {
       localStorage.setItem('budget_categories', JSON.stringify(data.categories));
@@ -1135,7 +1183,7 @@ function mapRev(r) {
 }
 
 async function sauvegarderTout() {
-  if (isSaving) return;
+  if (isSaving || !currentUser) return;
   isSaving = true;
   setSyncStatus('loading', 'Sauvegarde en cours...');
   try {
@@ -1152,7 +1200,7 @@ async function sauvegarderTout() {
     }));
     const catsData = getCategories();
     const comptesData = getComptes();
-    await window._fbSauvegarder(depData, revData, catsData, comptesData, categoryColors, compteColors, customColors);
+    await window._fbSauvegarder(currentUser.uid, depData, revData, catsData, comptesData, categoryColors, compteColors, customColors);
     setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     showToast('Sauvegardé dans Firebase');
   } catch(e) {
@@ -1904,8 +1952,48 @@ function updateProjectionChart(fluxNetMensuel) {
   });
 }
 
+// ── AUTH ──
+function seConnecter() {
+  const btn = document.getElementById('btn-google-login');
+  const errEl = document.getElementById('login-error');
+  if (btn) btn.disabled = true;
+  if (errEl) errEl.style.display = 'none';
+  window._fbLogin().catch(err => {
+    if (errEl) { errEl.textContent = 'Erreur : ' + err.message; errEl.style.display = 'block'; }
+    if (btn) btn.disabled = false;
+  });
+}
+
+function seDeconnecter() {
+  if (!confirm('Se déconnecter ?')) return;
+  window._fbLogout();
+}
+
+function setupAuth() {
+  window._fbOnAuth(function(user) {
+    currentUser = user;
+    const loginScreen = document.getElementById('login-screen');
+    const appEl = document.getElementById('app');
+    if (user) {
+      if (loginScreen) loginScreen.style.display = 'none';
+      if (appEl) appEl.style.display = 'block';
+      const userInfoEl = document.getElementById('modal-user-info');
+      if (userInfoEl) userInfoEl.textContent = user.displayName ? user.displayName + ' · ' + user.email : user.email;
+      demarrerApp();
+    } else {
+      if (loginScreen) loginScreen.style.display = 'flex';
+      if (appEl) appEl.style.display = 'none';
+      depenses = []; revenus = [];
+    }
+  });
+}
+
 // ── INIT ──
-demarrerApp();
+if (window._fbReady) {
+  setupAuth();
+} else {
+  window.addEventListener('fb-ready', setupAuth, { once: true });
+}
 </script>
 </body>
 </html>
