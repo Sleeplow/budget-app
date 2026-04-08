@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Budget">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://budget-personnel-2fb22.firebaseapp.com;">
 <title>Budget Personnel</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -547,6 +548,17 @@ let compteColors = {};
 let customColors = [];
 let colorPickerTarget = null;
 
+// ── SÉCURITÉ ──
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const PALETTE = [
   '#E53935','#D81B60','#8E24AA','#5E35B1',
   '#1E88E5','#039BE5','#00ACC1','#00897B',
@@ -761,13 +773,12 @@ function renderDashSoldesComptes() {
   const container = document.getElementById('dash-soldes-comptes');
   if (!container) return;
   container.innerHTML = comptes.map(cp => {
-    const safecp = cp.replace(/'/g, "\'");
     const val = soldes[cp] !== undefined ? soldes[cp] : '';
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <label style="font-size:13px;color:var(--text2);min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${cp}">${cp}</label>
+      <label style="font-size:13px;color:var(--text2);min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(cp)}">${escapeHtml(cp)}</label>
       <input type="number" placeholder="0.00" step="0.01" value="${val}"
         style="width:120px;"
-        oninput="onSoldeCompteInput('${safecp}', this.value)">
+        data-compte="${escapeHtml(cp)}" oninput="onSoldeCompteInput(this.dataset.compte, this.value)">
       <span style="font-size:13px;color:var(--text3);">$</span>
     </div>`;
   }).join('');
@@ -958,10 +969,10 @@ function renderCatList() {
   const cats = getCategories();
   const ul = document.getElementById('cat-list');
   ul.innerHTML = cats.map((cat, i) => {
-    if (cat === 'Autre') return `<li class="cat-item locked"><span style="color:var(--text3);width:16px;">⠿</span><span class="cat-name">${cat}</span><span style="font-size:11px;color:var(--text3);padding-right:4px;">fixe</span></li>`;
+    if (cat === 'Autre') return `<li class="cat-item locked"><span style="color:var(--text3);width:16px;">⠿</span><span class="cat-name">${escapeHtml(cat)}</span><span style="font-size:11px;color:var(--text3);padding-right:4px;">fixe</span></li>`;
     if (editingCatIndex === i) return `<li class="cat-item">
       <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
-      <input class="inline-edit" id="edit-cat-name-${i}" value="${cat.replace(/"/g,'&quot;')}" style="flex:1;height:26px;font-size:13px;">
+      <input class="inline-edit" id="edit-cat-name-${i}" value="${escapeHtml(cat)}" style="flex:1;height:26px;font-size:13px;">
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCat(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCat()">✕</button>
     </li>`;
@@ -970,8 +981,8 @@ function renderCatList() {
       ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event,${i})"
       ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd()">
       <span class="cat-drag-handle">⠿</span>
-      <span class="cat-name">${cat}</span>
-      <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" onclick="openColorPicker('cat','${cat.replace(/'/g,"\\'")}',event)"></div>
+      <span class="cat-name">${escapeHtml(cat)}</span>
+      <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" data-type="cat" data-name="${escapeHtml(cat)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
       <button class="cat-delete" title="Modifier" onclick="startEditCat(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -1049,7 +1060,7 @@ function renderCompteList() {
   ul.innerHTML = comptes.map((compte, i) => {
     if (editingCompteIndex === i) return `<li class="cat-item">
       <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
-      <input class="inline-edit" id="edit-compte-name-${i}" value="${compte.replace(/"/g,'&quot;')}" style="flex:1;height:26px;font-size:13px;">
+      <input class="inline-edit" id="edit-compte-name-${i}" value="${escapeHtml(compte)}" style="flex:1;height:26px;font-size:13px;">
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCompte(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCompte()">✕</button>
     </li>`;
@@ -1058,8 +1069,8 @@ function renderCompteList() {
       ondragstart="onDragStartC(event,${i})" ondragover="onDragOverC(event,${i})"
       ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
       <span class="cat-drag-handle">⠿</span>
-      <span class="cat-name">${compte}</span>
-      <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" onclick="openColorPicker('compte','${compte.replace(/'/g,"\\'")}',event)"></div>
+      <span class="cat-name">${escapeHtml(compte)}</span>
+      <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" data-type="compte" data-name="${escapeHtml(compte)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
       <button class="cat-delete" title="Modifier" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -1191,7 +1202,7 @@ async function chargerTout(showMsg=false) {
 
 function mapDep(d) {
   return {
-    id: d.id||Date.now()+Math.random(),
+    id: d.id||crypto.randomUUID(),
     desc: d.description||d.desc||'',
     montant: parseFloat(d.montant)||0,
     date: cleanDate(d.date||today()),
@@ -1202,7 +1213,7 @@ function mapDep(d) {
 }
 function mapRev(r) {
   return {
-    id: r.id||Date.now()+Math.random(),
+    id: r.id||crypto.randomUUID(),
     desc: r.description||r.desc||'',
     montant: parseFloat(r.montant)||0,
     date: cleanDate(r.date||today()),
@@ -1348,10 +1359,10 @@ function renderRevenus() {
     }
     const compteRevValid=isCompteValid(r.compte);
     const compteRevColor=r.compte&&compteRevValid?getCompteColor(r.compte):null;
-    const compteBadgeRev=r.compte?(compteRevValid?`<span class="compte-badge" style="background:${compteRevColor}20;color:${compteRevColor};">${r.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
+    const compteBadgeRev=r.compte?(compteRevValid?`<span class="compte-badge" style="background:${compteRevColor}20;color:${compteRevColor};">${escapeHtml(r.compte)}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${escapeHtml(r.compte)} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
-        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${r.desc}</span>
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(r.desc)}</span>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerRevenu(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
@@ -1419,9 +1430,9 @@ function renderDepenses() {
     const orphan=!isCatValid(d.cat);
     if (editingId===d.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
-      const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
-      const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
+      const orphanOpt=orphan?`<option value="${escapeHtml(d.cat)}" selected>${escapeHtml(d.cat)} (inconnu)</option>`:'';
+      const co=cats.map(c=>`<option value="${escapeHtml(c)}" ${c===d.cat?'selected':''}>${escapeHtml(c)}</option>`).join('');
+      const compteOptsDep=getComptes().map(cp=>`<option value="${escapeHtml(cp)}" ${cp===d.compte?'selected':''}>${escapeHtml(cp)}</option>`).join('');
       return `<div class="entry-card editing">
         <div class="entry-card-row"><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
@@ -1441,14 +1452,14 @@ function renderDepenses() {
     }
     const catColor=!orphan?getCatColor(d.cat):null;
     const catBadge=orphan
-      ?`<span class="badge badge-orphan" title="Catégorie inconnue">${d.cat||'(vide)'} ⚠</span>`
-      :`<span class="badge" style="background:${catColor}20;color:${catColor};">${d.cat}</span>`;
+      ?`<span class="badge badge-orphan" title="Catégorie inconnue">${escapeHtml(d.cat||'(vide)')} ⚠</span>`
+      :`<span class="badge" style="background:${catColor}20;color:${catColor};">${escapeHtml(d.cat)}</span>`;
     const compteDepValid=isCompteValid(d.compte);
     const compteDepColor=d.compte&&compteDepValid?getCompteColor(d.compte):null;
-    const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge" style="background:${compteDepColor}20;color:${compteDepColor};">${d.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
+    const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge" style="background:${compteDepColor}20;color:${compteDepColor};">${escapeHtml(d.compte)}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${escapeHtml(d.compte)} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
-        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${d.desc}</span>
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(d.desc)}</span>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerDepense(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
@@ -1629,12 +1640,12 @@ function confirmerImport() {
   (importPreviewData.valid||[]).forEach(row=>{
     const ex=row.id?depenses.find(d=>d.id===row.id):null;
     if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat,compte:row.compte||''});dUpdated++;}
-    else{depenses.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat,compte:row.compte||''});dAdded++;}
+    else{depenses.push({id:crypto.randomUUID(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,cat:row.cat,compte:row.compte||''});dAdded++;}
   });
   (importPreviewData.validRev||[]).forEach(row=>{
     const ex=row.id?revenus.find(r=>r.id===row.id):null;
     if (ex){Object.assign(ex,{desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,compte:row.compte||''});rUpdated++;}
-    else{revenus.push({id:Date.now()+Math.random(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,compte:row.compte||''});rAdded++;}
+    else{revenus.push({id:crypto.randomUUID(),desc:row.desc,montant:row.montant,date:row.date,freq:row.freq,compte:row.compte||''});rAdded++;}
   });
   importPreviewData=null;
   document.getElementById('import-preview-zone').innerHTML='';
@@ -1846,7 +1857,7 @@ function updateAnalytics() {
       top5El.innerHTML = sorted.map((d, i) => `
         <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:13px;">
           <span style="color:var(--text3);min-width:14px;font-weight:500;text-align:right;">${i+1}</span>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.desc}">${d.desc}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(d.desc)}">${escapeHtml(d.desc)}</span>
           <span style="color:var(--red);font-weight:500;white-space:nowrap;">$${d.monthly.toFixed(0)}/m</span>
         </div>`).join('');
     }
@@ -1877,8 +1888,8 @@ function updateAnalytics() {
         const isValid = getComptes().includes(cp);
         const color = isValid ? getCompteColor(cp) : null;
         const badge = color
-          ? `<span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:99px;">${cp}</span>`
-          : `<span style="font-size:12px;color:var(--text2);">${cp}</span>`;
+          ? `<span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:99px;">${escapeHtml(cp)}</span>`
+          : `<span style="font-size:12px;color:var(--text2);">${escapeHtml(cp)}</span>`;
         return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;flex-wrap:wrap;gap:4px;">
           ${badge}
           <div style="display:flex;gap:10px;">
@@ -1906,7 +1917,7 @@ function updateAnalytics() {
         insights.push({ color, text: `Taux de dépenses : <strong>${ratio.toFixed(0)}%</strong> de tes revenus.` });
       }
       const topCat = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
-      if (topCat) insights.push({ color: 'var(--text2)', text: `Catégorie principale : <strong>${topCat[0]}</strong> ($${topCat[1].toFixed(0)}/mois).` });
+      if (topCat) insights.push({ color: 'var(--text2)', text: `Catégorie principale : <strong>${escapeHtml(topCat[0])}</strong> ($${topCat[1].toFixed(0)}/mois).` });
       const annualSavings = fluxNet * 12;
       if (annualSavings !== 0) insights.push({ color: 'var(--text2)', text: `Projection annuelle : <strong style="color:${annualSavings>=0?'var(--green)':'var(--red)'};">${annualSavings>=0?'+':''} $${annualSavings.toFixed(0)}</strong>.` });
       insightsEl.innerHTML = insights.map(i =>
