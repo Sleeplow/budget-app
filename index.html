@@ -1291,7 +1291,7 @@ function saveEditRev(id) {
   const freq=document.getElementById('redit-freq-'+id).value;
   const compte=document.getElementById('redit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=revenus.findIndex(r=>r.id===id);
+  const idx=revenus.findIndex(r=>String(r.id)===id);
   if (idx!==-1) revenus[idx]={id,desc,montant,date,freq,compte};
   editingRevId=null; renderRevenus(); updateDashboard();
   sauvegarderTout();
@@ -1299,7 +1299,7 @@ function saveEditRev(id) {
 
 function supprimerRevenu(id) {
   if (!confirm('Supprimer ce revenu ?')) return;
-  revenus=revenus.filter(r=>r.id!==id);
+  revenus=revenus.filter(r=>String(r.id)!==id);
   if (editingRevId===id) editingRevId=null;
   renderRevenus(); updateDashboard();
   sauvegarderTout();
@@ -1338,7 +1338,7 @@ function renderRevenus() {
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
   const sorted=sortItems(revenus, revSort);
   const cards=sorted.map(r=>{
-    if (editingRevId===r.id) {
+    if (editingRevId===String(r.id)) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const coRev=getComptes().map(cp=>`<option value="${escapeHtml(cp)}" ${cp===r.compte?'selected':''}>${escapeHtml(cp)}</option>`).join('');
       return `<div class="entry-card editing">
@@ -1406,7 +1406,7 @@ function saveEdit(id) {
   const cat=document.getElementById('edit-cat-'+id).value;
   const compte=document.getElementById('edit-compte-'+id).value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Champs invalides.','error'); return; }
-  const idx=depenses.findIndex(d=>d.id===id);
+  const idx=depenses.findIndex(d=>String(d.id)===id);
   if (idx!==-1) depenses[idx]={id,desc,montant,date,freq,cat,compte};
   editingId=null; renderDepenses(); updateDashboard();
   sauvegarderTout();
@@ -1414,7 +1414,7 @@ function saveEdit(id) {
 
 function supprimerDepense(id) {
   if (!confirm('Supprimer cette dépense ?')) return;
-  depenses=depenses.filter(d=>d.id!==id);
+  depenses=depenses.filter(d=>String(d.id)!==id);
   if (editingId===id) editingId=null;
   renderDepenses(); updateDashboard();
   sauvegarderTout();
@@ -1428,7 +1428,7 @@ function renderDepenses() {
   const sorted=sortItems(depenses, depSort);
   const cards=sorted.map(d=>{
     const orphan=!isCatValid(d.cat);
-    if (editingId===d.id) {
+    if (editingId===String(d.id)) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const orphanOpt=orphan?`<option value="${escapeHtml(d.cat)}" selected>${escapeHtml(d.cat)} (inconnu)</option>`:'';
       const co=cats.map(c=>`<option value="${escapeHtml(c)}" ${c===d.cat?'selected':''}>${escapeHtml(c)}</option>`).join('');
