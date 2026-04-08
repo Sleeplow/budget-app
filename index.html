@@ -627,7 +627,7 @@ function refreshCatSelects() {
     const sel = document.getElementById(id);
     if (!sel) return;
     const current = sel.value;
-    sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    sel.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     if (cats.includes(current)) sel.value = current;
   });
 }
@@ -654,7 +654,7 @@ function refreshCompteSelects() {
   const opts = ['dep-compte','rev-compte'].map(id => document.getElementById(id)).filter(Boolean);
   opts.forEach(sel => {
     const cur = sel.value;
-    sel.innerHTML = comptes.map(c => `<option value="${c}">${c}</option>`).join('');
+    sel.innerHTML = comptes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     if (comptes.includes(cur)) sel.value = cur;
   });
 }
@@ -807,7 +807,7 @@ function refreshDashFiltreCompte() {
   const current = sel.value;
   const comptes = getComptes();
   sel.innerHTML = '<option value="tous">Tous les comptes</option>' +
-    comptes.map(cp => `<option value="${cp}">${cp}</option>`).join('');
+    comptes.map(cp => `<option value="${escapeHtml(cp)}">${escapeHtml(cp)}</option>`).join('');
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
   else sel.value = 'tous';
 }
@@ -923,11 +923,11 @@ function openColorPicker(type, name, event) {
 
   // Palette
   const grid = document.getElementById('cp-palette-grid');
-  grid.innerHTML = PALETTE.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('');
+  grid.innerHTML = PALETTE.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" data-color="${escapeHtml(c)}" onclick="selectColor(this.dataset.color)"></div>`).join('');
 
   // Custom colors
   const row = document.getElementById('cp-custom-row');
-  row.innerHTML = customColors.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('') +
+  row.innerHTML = customColors.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c)).map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" data-color="${escapeHtml(c)}" onclick="selectColor(this.dataset.color)"></div>`).join('') +
     `<button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>`;
 
   // Position
@@ -972,7 +972,7 @@ function renderCatList() {
     if (cat === 'Autre') return `<li class="cat-item locked"><span style="color:var(--text3);width:16px;">⠿</span><span class="cat-name">${escapeHtml(cat)}</span><span style="font-size:11px;color:var(--text3);padding-right:4px;">fixe</span></li>`;
     if (editingCatIndex === i) return `<li class="cat-item">
       <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
-      <input class="inline-edit" id="edit-cat-name-${i}" value="${escapeHtml(cat)}" style="flex:1;height:26px;font-size:13px;">
+      <input class="inline-edit" id="edit-cat-name-${i}" value="${escapeHtml(cat)}" style="flex:1;height:26px;font-size:13px;" maxlength="30">
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCat(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCat()">✕</button>
     </li>`;
@@ -1060,7 +1060,7 @@ function renderCompteList() {
   ul.innerHTML = comptes.map((compte, i) => {
     if (editingCompteIndex === i) return `<li class="cat-item">
       <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
-      <input class="inline-edit" id="edit-compte-name-${i}" value="${escapeHtml(compte)}" style="flex:1;height:26px;font-size:13px;">
+      <input class="inline-edit" id="edit-compte-name-${i}" value="${escapeHtml(compte)}" style="flex:1;height:26px;font-size:13px;" maxlength="30">
       <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCompte(${i})">✓</button>
       <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCompte()">✕</button>
     </li>`;
@@ -1273,7 +1273,7 @@ function ajouterRevenu() {
   const freq=document.getElementById('rev-freq').value;
   const compte=document.getElementById('rev-compte').value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Veuillez remplir tous les champs.','error'); return; }
-  revenus.push({id:Date.now(),desc,montant,date,freq,compte});
+  revenus.push({id:crypto.randomUUID(),desc,montant,date,freq,compte});
   document.getElementById('rev-desc').value='';
   document.getElementById('rev-montant').value='';
   document.getElementById('rev-date').value=today();
@@ -1342,7 +1342,7 @@ function renderRevenus() {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
       return `<div class="entry-card editing">
-        <div class="entry-card-row"><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" placeholder="Description" style="flex:1;min-width:0;"></div>
+        <div class="entry-card-row"><input class="inline-edit" id="redit-desc-${r.id}" value="${escapeHtml(r.desc)}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
           <input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
           <input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="flex:1;min-width:120px;">
@@ -1387,7 +1387,7 @@ function ajouterDepense() {
   const freq=document.getElementById('dep-freq').value;
   const cat=document.getElementById('dep-cat').value;
   if (!desc||isNaN(montant)||montant<=0||!date) { showToast('Veuillez remplir tous les champs.','error'); return; }
-  depenses.push({ id:Date.now(), desc, montant, date, freq, cat });
+  depenses.push({ id:crypto.randomUUID(), desc, montant, date, freq, cat });
   document.getElementById('dep-desc').value='';
   document.getElementById('dep-montant').value='';
   document.getElementById('dep-date').value=today();
@@ -1434,7 +1434,7 @@ function renderDepenses() {
       const co=cats.map(c=>`<option value="${escapeHtml(c)}" ${c===d.cat?'selected':''}>${escapeHtml(c)}</option>`).join('');
       const compteOptsDep=getComptes().map(cp=>`<option value="${escapeHtml(cp)}" ${cp===d.compte?'selected':''}>${escapeHtml(cp)}</option>`).join('');
       return `<div class="entry-card editing">
-        <div class="entry-card-row"><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" placeholder="Description" style="flex:1;min-width:0;"></div>
+        <div class="entry-card-row"><input class="inline-edit" id="edit-desc-${d.id}" value="${escapeHtml(d.desc)}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
           <input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
           <input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="flex:1;min-width:120px;">
@@ -1612,7 +1612,7 @@ function previewImport(event) {
       if (!valid.length&&!validRev.length&&!newCats&&!newComptes) { showToast('Aucune donnée valide trouvée.','error'); return; }
       importPreviewData={valid,errors,newCats,newComptes,validRev,errorsRev};
 
-      const compteMsg=newComptes?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Comptes : ${newComptes.join(', ')}</p>`:'';const catMsg=newCats?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories : ${newCats.filter(c=>c!=='Autre').join(', ')}</p>`:'';
+      const compteMsg=newComptes?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Comptes : ${newComptes.map(escapeHtml).join(', ')}</p>`:'';const catMsg=newCats?`<p style="font-size:12px;color:var(--green);margin-top:4px;">Catégories : ${newCats.filter(c=>c!=='Autre').map(escapeHtml).join(', ')}</p>`:'';
       const depMsg=valid.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${valid.length} dépense(s) à importer${errors.length?' · '+errors.length+' ignorée(s)':''}</p>`:'';
       const revMsg=validRev.length?`<p style="font-size:12px;color:var(--text2);margin-top:4px;">${validRev.length} revenu(s) à importer${errorsRev.length?' · '+errorsRev.length+' ignoré(s)':''}</p>`:'';
 
