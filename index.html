@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Budget Personnel</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,17 +110,47 @@
   .toast.info { background: var(--blue); color: #fff; }
   .preview-actions { display: flex; gap: 8px; margin-top: 10px; }
   .excel-info { background: rgba(24,95,165,0.07); border: 0.5px solid rgba(24,95,165,0.2); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.6; }
+  .color-picker-popup { position:fixed; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius); padding:12px; z-index:300; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; }
+  .color-picker-popup.open { display:block; }
+  .cp-label { font-size:11px; font-weight:500; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:7px; }
+  .cp-palette { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .cp-swatch { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform 0.1s; flex-shrink:0; box-sizing:border-box; }
+  .cp-swatch:hover { transform:scale(1.15); }
+  .cp-swatch.active { border-color:var(--text) !important; }
+  .cp-custom-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .cp-add-btn { width:22px; height:22px; border-radius:50%; border:1.5px dashed var(--border2); background:none; color:var(--text2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; }
+  .cp-add-btn:hover { border-color:var(--text); color:var(--text); }
+  .cat-color-dot { width:18px; height:18px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
+  .cat-color-dot:hover { transform:scale(1.2); border-color:var(--border2); }
+  .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; }
+  .entry-card.editing { background:var(--bg3); }
+  .entry-card-desc { font-size:13px; font-weight:500; margin-bottom:6px; word-break:break-word; }
+  .entry-card-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; font-size:13px; }
+  .entry-card-row:last-child { margin-bottom:0; }
+  .entry-card-row input, .entry-card-row select { flex:1; min-width:80px; }
   @media (max-width: 600px) {
     .form-row, .form-row.three { grid-template-columns: 1fr; }
     .metrics-grid { grid-template-columns: 1fr 1fr; }
     .metrics-grid .metric:last-child { grid-column: span 2; }
     table { font-size: 12px; } td, th { padding: 6px 4px; }
+    .an-main-grid { grid-template-columns: 1fr !important; }
+    .an-bottom-grid { grid-template-columns: 1fr !important; }
   }
+  /* ── LOGIN ── */
+  #login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg3); }
+  .login-card { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius); padding:2.5rem 2rem; max-width:360px; width:100%; text-align:center; }
+  .login-card h1 { font-size:22px; font-weight:500; margin-bottom:6px; }
+  .login-card p { font-size:14px; color:var(--text2); margin-bottom:2rem; line-height:1.5; }
+  .btn-google { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; height:44px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); font-size:15px; cursor:pointer; transition:background 0.15s; }
+  .btn-google:hover { background:var(--bg2); }
+  .btn-google:disabled { opacity:0.55; cursor:not-allowed; }
+  #login-error { font-size:12px; color:var(--red); margin-top:12px; display:none; }
 </style>
 <script type="module">
 // ── FIREBASE CONFIG ──
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDIl2VJrGEOxEQNpct-oAXGa1q37A3S4a0",
@@ -129,16 +163,33 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-const DOC_REF = doc(db, 'budget', 'data');
+const auth = getAuth(firebaseApp);
+const provider = new GoogleAuthProvider();
 
-window._fbCharger = async function() {
-  const snap = await getDoc(DOC_REF);
+function getDocRef(uid) {
+  return doc(db, 'users', uid, 'budget', 'data');
+}
+
+window._fbCharger = async function(uid) {
+  const snap = await getDoc(getDocRef(uid));
   if (snap.exists()) return snap.data();
-  return { depenses: [], revenus: [], categories: [], comptes: [] };
+  return { depenses: [], revenus: [], categories: [], comptes: [], categoryColors: {}, compteColors: {}, customColors: [] };
 };
 
-window._fbSauvegarder = async function(depenses, revenus, categories, comptes) {
-  await setDoc(DOC_REF, { depenses, revenus, categories, comptes });
+window._fbSauvegarder = async function(uid, depenses, revenus, categories, comptes, categoryColors, compteColors, customColors) {
+  await setDoc(getDocRef(uid), { depenses, revenus, categories, comptes, categoryColors, compteColors, customColors });
+};
+
+window._fbLogin = async function() {
+  await signInWithPopup(auth, provider);
+};
+
+window._fbLogout = async function() {
+  await signOut(auth);
+};
+
+window._fbOnAuth = function(callback) {
+  onAuthStateChanged(auth, callback);
 };
 
 window._fbReady = true;
@@ -147,8 +198,21 @@ window.dispatchEvent(new Event('fb-ready'));
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Budget Personnel</h1>
+    <p>Connecte-toi pour accéder<br>à tes données.</p>
+    <button id="btn-google-login" class="btn-google" onclick="seConnecter()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continuer avec Google
+    </button>
+    <p id="login-error"></p>
+  </div>
+</div>
+
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none;">
   <div class="app-header">
     <h1>Budget Personnel</h1>
     <button class="btn-icon-sm" onclick="ouvrirParametres()" title="Paramètres">
@@ -158,12 +222,58 @@ window.dispatchEvent(new Event('fb-ready'));
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
+    <button class="tab" onclick="showTab('transactions', this)">Transactions</button>
     <button class="tab" onclick="showTab('revenus', this)">Revenus</button>
     <button class="tab" onclick="showTab('depenses', this)">Dépenses</button>
   </div>
 
-  <!-- TABLEAU DE BORD -->
+  <!-- ANALYTIQUE (tableau de bord) -->
   <div id="tab-tableau-bord" class="section active">
+    <div class="metrics-grid" style="margin-bottom:1rem;">
+      <div class="metric">
+        <div class="metric-label">Flux net / mois</div>
+        <div class="metric-value" id="an-flux-net">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Revenus / mois</div>
+        <div class="metric-value positive" id="an-rev-mois">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Dépenses / mois</div>
+        <div class="metric-value negative" id="an-dep-mois">—</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem;" class="an-main-grid">
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Projection 6 mois</div>
+        <canvas id="chart-projection" height="160"></canvas>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Top 5 dépenses</div>
+        <div id="an-top5"><div class="empty-state">—</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="section-title">Répartition par catégorie</div>
+      <div id="an-cats"><div class="empty-state">—</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;" class="an-bottom-grid">
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Par compte</div>
+        <div id="an-comptes"><div class="empty-state">—</div></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="section-title">Insights</div>
+        <div id="an-insights"><div class="empty-state">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS -->
+  <div id="tab-transactions" class="section">
     <div class="card" style="margin-bottom:1rem;">
       <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:flex-start;">
         <div style="flex:1;min-width:220px;">
@@ -230,8 +340,17 @@ window.dispatchEvent(new Event('fb-ready'));
       <button class="btn btn-green" onclick="ajouterRevenu()">+ Ajouter</button>
     </div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;">Mes revenus (<span id="rev-count">0</span>)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes revenus (<span id="rev-count">0</span>)</div>
+        <div style="flex:1;"></div>
+        <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
+          <option value="date">Date</option>
+          <option value="desc">Description</option>
+          <option value="montant">Montant</option>
+          <option value="freq">Fréquence</option>
+          <option value="compte">Compte</option>
+        </select>
+        <button id="rev-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleRevSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
     </div>
@@ -245,7 +364,7 @@ window.dispatchEvent(new Event('fb-ready'));
         <div class="form-group"><label>Description</label><input type="text" id="dep-desc" placeholder="Ex: Loyer, Netflix..."></div>
         <div class="form-group"><label>Montant ($)</label><input type="number" id="dep-montant" placeholder="0.00" step="0.01" min="0"></div>
       </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+      <div class="form-row">
         <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="dep-date"></div>
         <div class="form-group"><label>Fréquence</label>
           <select id="dep-freq">
@@ -258,14 +377,26 @@ window.dispatchEvent(new Event('fb-ready'));
             <option value="annuel">Annuel</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Catégorie</label><select id="dep-cat"></select></div>
         <div class="form-group"><label>Compte</label><select id="dep-compte"></select></div>
       </div>
       <button class="btn btn-primary" onclick="ajouterDepense()">+ Ajouter</button>
     </div>
     <div class="card">
-      <div style="margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;">Mes dépenses (<span id="dep-count">0</span>)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <div style="flex:1;"></div>
+        <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
+          <option value="date">Date</option>
+          <option value="desc">Description</option>
+          <option value="montant">Montant</option>
+          <option value="freq">Fréquence</option>
+          <option value="cat">Catégorie</option>
+          <option value="compte">Compte</option>
+        </select>
+        <button id="dep-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleDepSortDir()" title="Inverser le tri">↑</button>
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
     </div>
@@ -290,9 +421,15 @@ window.dispatchEvent(new Event('fb-ready'));
     </h2>
 
     <div class="modal-section">
-      <div class="modal-section-title">Connexion Firebase</div>
-      <p class="modal-hint">Les données sont sauvegardées dans Firebase (budget-personnel-2fb22). La connexion est automatique.</p>
-      <div id="modal-sync-status" style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);">Statut : <span id="modal-sync-txt">—</span></div>
+      <div class="modal-section-title">Compte connecté</div>
+      <div style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);margin-bottom:8px;">
+        <span id="modal-user-info" style="word-break:break-all;">—</span>
+      </div>
+      <div id="modal-sync-status" style="font-size:13px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);margin-bottom:8px;">Statut : <span id="modal-sync-txt">—</span></div>
+      <button class="btn btn-red" style="width:100%;justify-content:center;" onclick="seDeconnecter();fermerParametres();">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Se déconnecter
+      </button>
     </div>
 
     <div class="modal-section">
@@ -357,17 +494,87 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 
+<div id="custom-color-modal" class="modal-overlay" style="z-index:400;">
+  <div class="modal" style="max-width:300px;width:100%;">
+    <h2 style="font-size:15px;">Couleur personnalisée</h2>
+    <canvas id="cp-sv-canvas" width="260" height="160" style="width:100%;border-radius:6px;cursor:crosshair;display:block;touch-action:none;"></canvas>
+    <canvas id="cp-hue-canvas" width="260" height="18" style="width:100%;border-radius:99px;cursor:pointer;display:block;margin-top:10px;touch-action:none;"></canvas>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-top:12px;">
+      <div class="form-group"><label>Hex</label><input type="text" id="cp-hex" maxlength="7" placeholder="#000000" oninput="onCpHexChange(this.value)" style="font-family:monospace;font-size:13px;"></div>
+      <div class="form-group"><label>R</label><input type="number" id="cp-r" min="0" max="255" oninput="onCpRgbChange()"></div>
+      <div class="form-group"><label>G</label><input type="number" id="cp-g" min="0" max="255" oninput="onCpRgbChange()"></div>
+      <div class="form-group"><label>B</label><input type="number" id="cp-b" min="0" max="255" oninput="onCpRgbChange()"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn btn-cancel" onclick="closeCustomColorModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="applyCustomColor()">Appliquer</button>
+    </div>
+  </div>
+</div>
+<div id="color-picker-popup" class="color-picker-popup">
+  <div class="cp-label">Palette</div>
+  <div class="cp-palette" id="cp-palette-grid"></div>
+  <div class="cp-label">Personnalisé</div>
+  <div class="cp-custom-row" id="cp-custom-row">
+    <button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // ── ÉTAT ──
+let currentUser = null;
 let depenses = [];
 let revenus = [];
 let editingId = null;
 let editingRevId = null;
+let revSort = { field: 'date', asc: true };
+let depSort = { field: 'date', asc: true };
+let editingCatIndex = null;
+let editingCompteIndex = null;
 let importPreviewData = null;
 let isSaving = false;
 let dragSrcIndex = null;
+let categoryColors = {};
+let compteColors = {};
+let customColors = [];
+let colorPickerTarget = null;
+
+const PALETTE = [
+  '#E53935','#D81B60','#8E24AA','#5E35B1',
+  '#1E88E5','#039BE5','#00ACC1','#00897B',
+  '#43A047','#7CB342','#F9A825','#FB8C00',
+  '#FF7043','#6D4C41','#546E7A','#EC407A',
+  '#7E57C2','#29B6F6','#26C6DA','#66BB6A',
+  '#D4E157','#FFCA28','#FF5722','#78909C',
+];
+
+function getNextPaletteColor(colorsObj) {
+  const used = Object.values(colorsObj);
+  const unused = PALETTE.filter(c => !used.includes(c));
+  return unused.length > 0 ? unused[0] : PALETTE[used.length % PALETTE.length];
+}
+function getCatColor(name) {
+  if (!categoryColors[name]) {
+    categoryColors[name] = getNextPaletteColor(categoryColors);
+    localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors));
+  }
+  return categoryColors[name];
+}
+function getCompteColor(name) {
+  if (!compteColors[name]) {
+    compteColors[name] = getNextPaletteColor(compteColors);
+    localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors));
+  }
+  return compteColors[name];
+}
+function loadColors() {
+  try { categoryColors = JSON.parse(localStorage.getItem('budget_cat_colors') || '{}'); } catch(e) { categoryColors = {}; }
+  try { compteColors = JSON.parse(localStorage.getItem('budget_compte_colors') || '{}'); } catch(e) { compteColors = {}; }
+  try { customColors = JSON.parse(localStorage.getItem('budget_custom_colors') || '[]'); } catch(e) { customColors = []; }
+}
+loadColors();
 
 const CATS_DEFAULT = ['Logement','Transport','Alimentation','Abonnement','Assurance','Épargne','Loisirs','Autre'];
 const COMPTES_DEFAULT = ['Chèques','Épargne'];
@@ -375,6 +582,7 @@ const FREQ_LABELS = { unique:'Unique', hebdo:'Hebdo.', bihebdo:'Aux 2 sem.', men
 const FREQ_MAP = {};
 Object.entries(FREQ_LABELS).forEach(([k,v]) => { FREQ_MAP[k]=k; FREQ_MAP[v.toLowerCase()]=k; });
 const FREQS = ['unique','hebdo','bihebdo','mensuel','bimensuel','trimestriel','annuel'];
+const FREQ_MULTIPLIER = { unique:0, hebdo:52/12, bihebdo:26/12, mensuel:1, bimensuel:0.5, trimestriel:1/3, annuel:1/12 };
 
 // ── CATÉGORIES ──
 function getCategories() {
@@ -617,20 +825,170 @@ function ouvrirParametres() {
 function fermerParametres() { document.getElementById('modal-params').classList.remove('open'); }
 function fermerModalSiOverlay(e) { if (e.target === document.getElementById('modal-params')) fermerParametres(); }
 
+// ── COLOR CONVERSION ──
+function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return[r,g,b];}
+function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');}
+function hsvToRgb(h,s,v){s/=100;v/=100;const i=Math.floor(h/60)%6,f=h/60-Math.floor(h/60),p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);const[r,g,b]=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i];return[Math.round(r*255),Math.round(g*255),Math.round(b*255)];}
+function hsvToHex(h,s,v){return rgbToHex(...hsvToRgb(h,s,v));}
+function rgbToHsv(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0,s=max?d/max:0,vv=max;if(d){if(max===r)h=((g-b)/d+6)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return[Math.round(h),Math.round(s*100),Math.round(vv*100)];}
+
+// ── CUSTOM COLOR MODAL ──
+let cpH=210,cpS=70,cpV=80,cpSvDrag=false,cpHueDrag=false,cpInited=false;
+let projectionChart = null;
+
+function renderCpSv(){
+  const c=document.getElementById('cp-sv-canvas');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const[hr,hg,hb]=hsvToRgb(cpH,100,100);
+  const gH=ctx.createLinearGradient(0,0,w,0);gH.addColorStop(0,'#fff');gH.addColorStop(1,`rgb(${hr},${hg},${hb})`);
+  ctx.fillStyle=gH;ctx.fillRect(0,0,w,h);
+  const gV=ctx.createLinearGradient(0,0,0,h);gV.addColorStop(0,'rgba(0,0,0,0)');gV.addColorStop(1,'#000');
+  ctx.fillStyle=gV;ctx.fillRect(0,0,w,h);
+  const x=cpS/100*w,y=(1-cpV/100)*h;
+  ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,0.4)';ctx.lineWidth=1;ctx.stroke();
+}
+function renderCpHue(){
+  const c=document.getElementById('cp-hue-canvas');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const g=ctx.createLinearGradient(0,0,w,0);
+  for(let i=0;i<=360;i+=30)g.addColorStop(i/360,`hsl(${i},100%,50%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  const x=cpH/360*w;
+  ctx.beginPath();ctx.arc(x,h/2,h/2-1,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(x,h/2,h/2,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=1;ctx.stroke();
+}
+function updateCpInputs(){
+  const hex=hsvToHex(cpH,cpS,cpV);const[r,g,b]=hexToRgb(hex);
+  const hEl=document.getElementById('cp-hex');if(hEl)hEl.value=hex;
+  const rEl=document.getElementById('cp-r');if(rEl)rEl.value=r;
+  const gEl=document.getElementById('cp-g');if(gEl)gEl.value=g;
+  const bEl=document.getElementById('cp-b');if(bEl)bEl.value=b;
+}
+function initCpEvents(){
+  if(cpInited)return;cpInited=true;
+  const sv=document.getElementById('cp-sv-canvas');
+  const hue=document.getElementById('cp-hue-canvas');
+  function svPos(e){const r=sv.getBoundingClientRect(),cl=e.touches?e.touches[0]:e;cpS=Math.round(Math.max(0,Math.min(1,(cl.clientX-r.left)/r.width))*100);cpV=Math.round(Math.max(0,Math.min(1,1-(cl.clientY-r.top)/r.height))*100);renderCpSv();updateCpInputs();}
+  function huePos(e){const r=hue.getBoundingClientRect(),cl=e.touches?e.touches[0]:e;cpH=Math.round(Math.max(0,Math.min(360,(cl.clientX-r.left)/r.width*360)));renderCpSv();renderCpHue();updateCpInputs();}
+  sv.addEventListener('mousedown',e=>{cpSvDrag=true;svPos(e);});
+  sv.addEventListener('mousemove',e=>{if(cpSvDrag)svPos(e);});
+  sv.addEventListener('touchstart',e=>{e.preventDefault();svPos(e);},{passive:false});
+  sv.addEventListener('touchmove',e=>{e.preventDefault();svPos(e);},{passive:false});
+  hue.addEventListener('mousedown',e=>{cpHueDrag=true;huePos(e);});
+  hue.addEventListener('mousemove',e=>{if(cpHueDrag)huePos(e);});
+  hue.addEventListener('touchstart',e=>{e.preventDefault();huePos(e);},{passive:false});
+  hue.addEventListener('touchmove',e=>{e.preventDefault();huePos(e);},{passive:false});
+  document.addEventListener('mouseup',()=>{cpSvDrag=false;cpHueDrag=false;});
+}
+function openCustomColorModal(initialColor){
+  const col=initialColor||'#1D9E75';
+  const[r,g,b]=hexToRgb(col);[cpH,cpS,cpV]=rgbToHsv(r,g,b);
+  document.getElementById('custom-color-modal').classList.add('open');
+  setTimeout(()=>{initCpEvents();renderCpSv();renderCpHue();updateCpInputs();},30);
+}
+function closeCustomColorModal(){document.getElementById('custom-color-modal').classList.remove('open');}
+function applyCustomColor(){
+  const hex=hsvToHex(cpH,cpS,cpV);
+  if(!customColors.includes(hex)){customColors=[hex,...customColors].slice(0,8);localStorage.setItem('budget_custom_colors',JSON.stringify(customColors));}
+  closeCustomColorModal();
+  selectColor(hex);
+}
+function onCpHexChange(val){if(!/^#[0-9A-Fa-f]{6}$/.test(val))return;const[r,g,b]=hexToRgb(val);[cpH,cpS,cpV]=rgbToHsv(r,g,b);renderCpSv();renderCpHue();updateCpInputs();}
+function onCpRgbChange(){const r=parseInt(document.getElementById('cp-r').value)||0,g=parseInt(document.getElementById('cp-g').value)||0,b=parseInt(document.getElementById('cp-b').value)||0;[cpH,cpS,cpV]=rgbToHsv(r,g,b);renderCpSv();renderCpHue();document.getElementById('cp-hex').value=rgbToHex(r,g,b);}
+
+// ── COLOR PICKER ──
+function openColorPicker(type, name, event) {
+  event.stopPropagation();
+  colorPickerTarget = { type, name };
+  const popup = document.getElementById('color-picker-popup');
+  const currentColor = type === 'cat' ? getCatColor(name) : getCompteColor(name);
+
+  // Palette
+  const grid = document.getElementById('cp-palette-grid');
+  grid.innerHTML = PALETTE.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('');
+
+  // Custom colors
+  const row = document.getElementById('cp-custom-row');
+  row.innerHTML = customColors.map(c => `<div class="cp-swatch${c===currentColor?' active':''}" style="background:${c};" onclick="selectColor('${c}')"></div>`).join('') +
+    `<button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>`;
+
+  // Position
+  const rect = event.currentTarget.getBoundingClientRect();
+  popup.style.top = (rect.bottom + 6) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+  popup.classList.add('open');
+  document.getElementById('cp-native-input').value = currentColor;
+}
+function closeColorPicker() {
+  document.getElementById('color-picker-popup').classList.remove('open');
+  colorPickerTarget = null;
+}
+function selectColor(color) {
+  if (!colorPickerTarget) return;
+  const { type, name } = colorPickerTarget;
+  if (type === 'cat') { categoryColors[name] = color; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); renderCatList(); }
+  else { compteColors[name] = color; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); renderCompteList(); }
+  sauvegarderTout();
+  closeColorPicker();
+}
+function triggerNativeColorPick() {
+  const current = colorPickerTarget
+    ? (colorPickerTarget.type==='cat' ? getCatColor(colorPickerTarget.name) : getCompteColor(colorPickerTarget.name))
+    : '#1D9E75';
+  closeColorPicker();
+  openCustomColorModal(current);
+}
+document.addEventListener('click', e => {
+  const popup = document.getElementById('color-picker-popup');
+  if (popup && popup.classList.contains('open') && !popup.contains(e.target)) closeColorPicker();
+});
+
 // ── CATÉGORIES UI ──
+const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const SVG_DELETE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`;
+
 function renderCatList() {
   const cats = getCategories();
   const ul = document.getElementById('cat-list');
   ul.innerHTML = cats.map((cat, i) => {
     if (cat === 'Autre') return `<li class="cat-item locked"><span style="color:var(--text3);width:16px;">⠿</span><span class="cat-name">${cat}</span><span style="font-size:11px;color:var(--text3);padding-right:4px;">fixe</span></li>`;
+    if (editingCatIndex === i) return `<li class="cat-item">
+      <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
+      <input class="inline-edit" id="edit-cat-name-${i}" value="${cat.replace(/"/g,'&quot;')}" style="flex:1;height:26px;font-size:13px;">
+      <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCat(${i})">✓</button>
+      <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCat()">✕</button>
+    </li>`;
+    const ccolor = getCatColor(cat);
     return `<li class="cat-item" draggable="true" data-index="${i}"
       ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event,${i})"
       ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${cat}</span>
-      <button class="cat-delete" onclick="supprimerCategorie(${i})">×</button>
+      <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" onclick="openColorPicker('cat','${cat.replace(/'/g,"\\'")}',event)"></div>
+      <button class="cat-delete" title="Modifier" onclick="startEditCat(${i})">${SVG_EDIT}</button>
+      <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
     </li>`;
   }).join('');
+}
+function startEditCat(i) { editingCatIndex=i; renderCatList(); setTimeout(()=>document.getElementById('edit-cat-name-'+i)?.focus(),0); }
+function cancelEditCat() { editingCatIndex=null; renderCatList(); }
+function saveEditCat(i) {
+  const input = document.getElementById('edit-cat-name-'+i);
+  const nouveau = input ? input.value.trim() : '';
+  if (!nouveau) return;
+  const cats = getCategories();
+  const ancien = cats[i];
+  if (nouveau === ancien) { cancelEditCat(); return; }
+  if (cats.includes(nouveau)) { showToast('Cette catégorie existe déjà','error'); return; }
+  cats[i] = nouveau;
+  depenses.forEach(d => { if (d.cat === ancien) d.cat = nouveau; });
+  if (categoryColors[ancien]) { categoryColors[nouveau] = categoryColors[ancien]; delete categoryColors[ancien]; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); }
+  saveCategories(cats);
+  editingCatIndex = null;
+  renderCatList(); renderDepenses();
+  sauvegarderTout();
+  showToast(`"${ancien}" renommée en "${nouveau}"`);
 }
 
 function ajouterCategorie() {
@@ -653,6 +1011,7 @@ function supprimerCategorie(index) {
   const msg = used > 0 ? `"${nom}" est utilisée par ${used} dépense(s). Elles seront marquées inconnues. Continuer?` : `Supprimer "${nom}" ?`;
   if (!confirm(msg)) return;
   cats.splice(index, 1);
+  delete categoryColors[nom]; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors));
   saveCategories(cats);
   renderCatList();
   showToast(`"${nom}" supprimée`, 'info');
@@ -681,14 +1040,44 @@ function renderCompteList() {
   const comptes = getComptes();
   const ul = document.getElementById('compte-list');
   if (!ul) return;
-  ul.innerHTML = comptes.map((compte, i) => `
-    <li class="cat-item" draggable="true" data-ci="${i}"
+  ul.innerHTML = comptes.map((compte, i) => {
+    if (editingCompteIndex === i) return `<li class="cat-item">
+      <span class="cat-drag-handle" style="color:var(--text3);">⠿</span>
+      <input class="inline-edit" id="edit-compte-name-${i}" value="${compte.replace(/"/g,'&quot;')}" style="flex:1;height:26px;font-size:13px;">
+      <button class="btn btn-save" style="height:26px;font-size:12px;padding:0 8px;" onclick="saveEditCompte(${i})">✓</button>
+      <button class="btn btn-cancel" style="height:26px;font-size:12px;padding:0 8px;" onclick="cancelEditCompte()">✕</button>
+    </li>`;
+    const cpcolor = getCompteColor(compte);
+    return `<li class="cat-item" draggable="true" data-ci="${i}"
       ondragstart="onDragStartC(event,${i})" ondragover="onDragOverC(event,${i})"
       ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${compte}</span>
-      <button class="cat-delete" onclick="supprimerCompte(${i})">×</button>
-    </li>`).join('');
+      <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" onclick="openColorPicker('compte','${compte.replace(/'/g,"\\'")}',event)"></div>
+      <button class="cat-delete" title="Modifier" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
+      <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
+    </li>`;
+  }).join('');
+}
+function startEditCompte(i) { editingCompteIndex=i; renderCompteList(); setTimeout(()=>document.getElementById('edit-compte-name-'+i)?.focus(),0); }
+function cancelEditCompte() { editingCompteIndex=null; renderCompteList(); }
+function saveEditCompte(i) {
+  const input = document.getElementById('edit-compte-name-'+i);
+  const nouveau = input ? input.value.trim() : '';
+  if (!nouveau) return;
+  const comptes = getComptes();
+  const ancien = comptes[i];
+  if (nouveau === ancien) { cancelEditCompte(); return; }
+  if (comptes.includes(nouveau)) { showToast('Ce compte existe déjà','error'); return; }
+  comptes[i] = nouveau;
+  depenses.forEach(d => { if (d.compte === ancien) d.compte = nouveau; });
+  revenus.forEach(r => { if (r.compte === ancien) r.compte = nouveau; });
+  if (compteColors[ancien]) { compteColors[nouveau] = compteColors[ancien]; delete compteColors[ancien]; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); }
+  saveComptes(comptes);
+  editingCompteIndex = null;
+  renderCompteList(); renderDepenses(); renderRevenus();
+  sauvegarderTout();
+  showToast(`"${ancien}" renommé en "${nouveau}"`);
 }
 function ajouterCompte() {
   const input = document.getElementById('new-compte-input');
@@ -707,6 +1096,7 @@ function supprimerCompte(index) {
   const msg = used > 0 ? `"${nom}" utilisé par ${used} entrée(s). Continuer?` : `Supprimer "${nom}" ?`;
   if (!confirm(msg)) return;
   comptes.splice(index, 1);
+  delete compteColors[nom]; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors));
   saveComptes(comptes); renderCompteList();
   showToast(`"${nom}" supprimé`,'info');
 }
@@ -727,19 +1117,20 @@ async function resetApp() {
   if (!confirm('Dernière confirmation — toutes les données seront effacées de Firebase.')) return;
   depenses=[]; revenus=[];
   fermerParametres();
-  renderDepenses(); renderRevenus(); updateDashboard();
+  renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
   await sauvegarderTout();
   showToast('App réinitialisée','info');
 }
 
 // ── GOOGLE SHEETS ──
 async function chargerTout(showMsg=false) {
+  if (!currentUser) return;
   setSyncStatus('loading','Chargement depuis Firebase...');
   try {
     if (!window._fbReady) {
       await new Promise(resolve => window.addEventListener('fb-ready', resolve, {once:true}));
     }
-    const data = await window._fbCharger();
+    const data = await window._fbCharger(currentUser.uid);
     // Catégories
     if (Array.isArray(data.categories) && data.categories.length > 0) {
       localStorage.setItem('budget_categories', JSON.stringify(data.categories));
@@ -750,12 +1141,16 @@ async function chargerTout(showMsg=false) {
       localStorage.setItem('budget_comptes', JSON.stringify(data.comptes));
       refreshCompteSelects();
     }
+    // Couleurs
+    if (data.categoryColors) { categoryColors = data.categoryColors; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); }
+    if (data.compteColors) { compteColors = data.compteColors; localStorage.setItem('budget_compte_colors', JSON.stringify(compteColors)); }
+    if (data.customColors) { customColors = data.customColors; localStorage.setItem('budget_custom_colors', JSON.stringify(customColors)); }
     // Dépenses
     depenses = Array.isArray(data.depenses) ? data.depenses.map(mapDep) : [];
     // Revenus
     revenus = Array.isArray(data.revenus) ? data.revenus.map(mapRev) : [];
     setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard();
+    renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
     if(showMsg) showToast('Données synchronisées !');
   } catch(e) {
     console.error('chargerTout erreur:', e);
@@ -788,7 +1183,7 @@ function mapRev(r) {
 }
 
 async function sauvegarderTout() {
-  if (isSaving) return;
+  if (isSaving || !currentUser) return;
   isSaving = true;
   setSyncStatus('loading', 'Sauvegarde en cours...');
   try {
@@ -805,7 +1200,7 @@ async function sauvegarderTout() {
     }));
     const catsData = getCategories();
     const comptesData = getComptes();
-    await window._fbSauvegarder(depData, revData, catsData, comptesData);
+    await window._fbSauvegarder(currentUser.uid, depData, revData, catsData, comptesData, categoryColors, compteColors, customColors);
     setSyncStatus('ok', `Sauvegardé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
     showToast('Sauvegardé dans Firebase');
   } catch(e) {
@@ -824,7 +1219,8 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
-  if (id==='tableau-bord') updateDashboard();
+  if (id==='tableau-bord') updateAnalytics();
+  if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
   if (id==='revenus') { editingRevId=null; renderRevenus(); }
 }
@@ -869,42 +1265,78 @@ function supprimerRevenu(id) {
   sauvegarderTout();
 }
 
+function sortItems(items, sort, fields) {
+  return [...items].sort((a, b) => {
+    let va = a[sort.field] ?? '';
+    let vb = b[sort.field] ?? '';
+    const cmp = typeof va === 'number'
+      ? va - vb
+      : String(va).localeCompare(String(vb));
+    return sort.asc ? cmp : -cmp;
+  });
+}
+function onRevSortChange() {
+  revSort.field = document.getElementById('rev-sort-field').value;
+  renderRevenus();
+}
+function toggleRevSortDir() {
+  revSort.asc = !revSort.asc;
+  renderRevenus();
+}
+function onDepSortChange() {
+  depSort.field = document.getElementById('dep-sort-field').value;
+  renderDepenses();
+}
+function toggleDepSortDir() {
+  depSort.asc = !depSort.asc;
+  renderDepenses();
+}
+
 function renderRevenus() {
   document.getElementById('rev-count').textContent=revenus.length;
   const el=document.getElementById('rev-list-container');
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
-  const sorted=[...revenus].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=sorted.map(r=>{
+  const sorted=sortItems(revenus, revSort);
+  const cards=sorted.map(r=>{
     if (editingRevId===r.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="redit-freq-${r.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="redit-compte-${r.id}" style="width:110px;">${coRev}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEditRev()">Annuler</button>
-        </div></td>
-      </tr>`;
+      return `<div class="entry-card editing">
+        <div class="entry-card-row"><input class="inline-edit" id="redit-desc-${r.id}" value="${r.desc.replace(/"/g,'&quot;')}" placeholder="Description" style="flex:1;min-width:0;"></div>
+        <div class="entry-card-row">
+          <input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
+          <input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="flex:1;min-width:120px;">
+          <select class="inline-edit" id="redit-freq-${r.id}" style="flex:1;min-width:100px;">${fo}</select>
+        </div>
+        <div class="entry-card-row">
+          <select class="inline-edit" id="redit-compte-${r.id}" style="flex:1;min-width:120px;">${coRev}</select>
+        </div>
+        <div class="entry-card-row">
+          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" onclick="saveEditRev(${r.id})">Sauvegarder</button>
+          <button class="btn btn-cancel" style="height:30px;font-size:12px;padding:0 12px;" onclick="cancelEditRev()">Annuler</button>
+        </div>
+      </div>`;
     }
-    const compteRevValid = isCompteValid(r.compte);
-    const compteBadgeRev = r.compte ? (compteRevValid ? `<span class="compte-badge">${r.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<tr>
-      <td>${r.desc}</td>
-      <td style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</td>
-      <td>${formatDate(r.date)}</td>
-      <td><span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span></td>
-      <td>${compteBadgeRev}</td>
-      <td><div class="edit-actions">
-        <button class="btn-row-icon" onclick="startEditRev(${r.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerRevenu(${r.id})">Supprimer</button>
-      </div></td>
-    </tr>`;
+    const compteRevValid=isCompteValid(r.compte);
+    const compteRevColor=r.compte&&compteRevValid?getCompteColor(r.compte):null;
+    const compteBadgeRev=r.compte?(compteRevValid?`<span class="compte-badge" style="background:${compteRevColor}20;color:${compteRevColor};">${r.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${r.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
+    return `<div class="entry-card">
+      <div class="entry-card-row" style="margin-bottom:6px;">
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${r.desc}</span>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEditRev(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerRevenu(${r.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+      </div>
+      <div class="entry-card-row">
+        <span style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</span>
+        <span style="color:var(--text2);">${formatDate(r.date)}</span>
+        <span class="badge ${r.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(r.freq)}</span>
+      </div>
+      <div class="entry-card-row">${compteBadgeRev}</div>
+    </div>`;
   }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=cards;
+  const dirBtn=document.getElementById('rev-sort-dir');
+  if(dirBtn) dirBtn.textContent=revSort.asc?'↑':'↓';
 }
 
 // ── DÉPENSES CRUD ──
@@ -953,46 +1385,55 @@ function renderDepenses() {
   const el=document.getElementById('dep-list-container');
   if (!depenses.length) { el.innerHTML='<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
   const cats=getCategories();
-  const sorted=[...depenses].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=sorted.map(d => {
+  const sorted=sortItems(depenses, depSort);
+  const cards=sorted.map(d=>{
     const orphan=!isCatValid(d.cat);
     if (editingId===d.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===d.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
       const orphanOpt=orphan?`<option value="${d.cat}" selected>${d.cat} (inconnu)</option>`:'';
       const co=cats.map(c=>`<option value="${c}" ${c===d.cat?'selected':''}>${c}</option>`).join('');
       const compteOptsDep=getComptes().map(cp=>`<option value="${cp}" ${cp===d.compte?'selected':''}>${cp}</option>`).join('');
-      return `<tr class="editing-row">
-        <td><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" style="width:100%;"></td>
-        <td><input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" style="width:90px;"></td>
-        <td><input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="width:145px;"></td>
-        <td><select class="inline-edit" id="edit-freq-${d.id}" style="width:125px;">${fo}</select></td>
-        <td><select class="inline-edit" id="edit-cat-${d.id}" style="width:120px;">${orphanOpt}${co}</select></td>
-        <td><select class="inline-edit" id="edit-compte-${d.id}" style="width:110px;">${compteOptsDep}</select></td>
-        <td><div class="edit-actions">
-          <button class="btn btn-save" style="height:28px;font-size:12px;padding:0 10px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
-          <button class="btn btn-cancel" style="height:28px;font-size:12px;padding:0 10px;" onclick="cancelEdit()">Annuler</button>
-        </div></td>
-      </tr>`;
+      return `<div class="entry-card editing">
+        <div class="entry-card-row"><input class="inline-edit" id="edit-desc-${d.id}" value="${d.desc.replace(/"/g,'&quot;')}" placeholder="Description" style="flex:1;min-width:0;"></div>
+        <div class="entry-card-row">
+          <input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
+          <input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="flex:1;min-width:120px;">
+          <select class="inline-edit" id="edit-freq-${d.id}" style="flex:1;min-width:100px;">${fo}</select>
+        </div>
+        <div class="entry-card-row">
+          <select class="inline-edit" id="edit-cat-${d.id}" style="flex:1;min-width:120px;">${orphanOpt}${co}</select>
+          <select class="inline-edit" id="edit-compte-${d.id}" style="flex:1;min-width:120px;">${compteOptsDep}</select>
+        </div>
+        <div class="entry-card-row">
+          <button class="btn btn-save" style="height:30px;font-size:12px;padding:0 12px;" onclick="saveEdit(${d.id})">Sauvegarder</button>
+          <button class="btn btn-cancel" style="height:30px;font-size:12px;padding:0 12px;" onclick="cancelEdit()">Annuler</button>
+        </div>
+      </div>`;
     }
+    const catColor=!orphan?getCatColor(d.cat):null;
     const catBadge=orphan
-      ?`<span class="badge badge-orphan" title="Catégorie inconnue — cliquez Modifier pour corriger">${d.cat||'(vide)'} ⚠</span>`
-      :`<span style="color:var(--text2);">${d.cat}</span>`;
-    const compteDepValid = isCompteValid(d.compte);
-    const compteBadgeDep = d.compte ? (compteDepValid ? `<span class="compte-badge">${d.compte}</span>` : `<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`) : '<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<tr>
-      <td>${d.desc}</td>
-      <td style="font-weight:500;">-$${d.montant.toFixed(2)}</td>
-      <td>${formatDate(d.date)}</td>
-      <td><span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span></td>
-      <td>${catBadge}</td>
-      <td>${compteBadgeDep}</td>
-      <td><div class="edit-actions">
-        <button class="btn-row-icon" onclick="startEdit(${d.id})">Modifier</button>
-        <button class="btn-row-icon danger" onclick="supprimerDepense(${d.id})">Supprimer</button>
-      </div></td>
-    </tr>`;
+      ?`<span class="badge badge-orphan" title="Catégorie inconnue">${d.cat||'(vide)'} ⚠</span>`
+      :`<span class="badge" style="background:${catColor}20;color:${catColor};">${d.cat}</span>`;
+    const compteDepValid=isCompteValid(d.compte);
+    const compteDepColor=d.compte&&compteDepValid?getCompteColor(d.compte):null;
+    const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge" style="background:${compteDepColor}20;color:${compteDepColor};">${d.compte}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${d.compte} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
+    return `<div class="entry-card">
+      <div class="entry-card-row" style="margin-bottom:6px;">
+        <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${d.desc}</span>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" onclick="startEdit(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" onclick="supprimerDepense(${d.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+      </div>
+      <div class="entry-card-row">
+        <span style="font-weight:500;color:var(--red);">-$${d.montant.toFixed(2)}</span>
+        <span style="color:var(--text2);">${formatDate(d.date)}</span>
+        <span class="badge ${d.freq==='unique'?'badge-unique':'badge-recurrent'}">${freqLabel(d.freq)}</span>
+      </div>
+      <div class="entry-card-row">${catBadge}${compteBadgeDep}</div>
+    </div>`;
   }).join('');
-  el.innerHTML=`<table><thead><tr><th>Description</th><th>Montant</th><th>Date</th><th>Fréquence</th><th>Catégorie</th><th>Compte</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=cards;
+  const dirBtn=document.getElementById('dep-sort-dir');
+  if(dirBtn) dirBtn.textContent=depSort.asc?'↑':'↓';
 }
 
 // ── EXCEL EXPORT ──
@@ -1169,7 +1610,7 @@ function confirmerImport() {
   importPreviewData=null;
   document.getElementById('import-preview-zone').innerHTML='';
   document.getElementById('import-file').value='';
-  renderDepenses(); renderRevenus(); updateDashboard();
+  renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
   sauvegarderTout();
   showToast(`Import : dép. ${dAdded}+${dUpdated}, rev. ${rAdded}+${rUpdated}`);
 }
@@ -1254,11 +1695,11 @@ function updateDashboard() {
   let soldeCourant = si || 0;
 
   const enTete = hasSolde
-    ? `<div style="display:grid;grid-template-columns:100px 1fr 100px 110px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
-        <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span><span style="text-align:right;">Solde après</span>
+    ? `<div style="display:grid;grid-template-columns:minmax(0,1fr) 100px 110px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
+        <span>Description</span><span style="text-align:right;">Montant</span><span style="text-align:right;">Solde après</span>
       </div>`
-    : `<div style="display:grid;grid-template-columns:100px 1fr 100px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
-        <span>Date</span><span>Description</span><span style="text-align:right;">Montant</span>
+    : `<div style="display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:8px;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);margin-bottom:4px;">
+        <span>Description</span><span style="text-align:right;">Montant</span>
       </div>`;
 
   // Grouper par date pour ajouter les séparateurs
@@ -1280,9 +1721,9 @@ function updateDashboard() {
     const soldeStr = hasSolde
       ? `<span style="text-align:right;font-weight:500;color:${soldeCourant>=0?'var(--green)':'var(--red)'};">$${soldeCourant.toFixed(2)}</span>`
       : '';
-    const grid = hasSolde ? 'grid-template-columns:1fr 100px 110px' : 'grid-template-columns:1fr 100px';
+    const grid = hasSolde ? 'grid-template-columns:minmax(0,1fr) 100px 110px' : 'grid-template-columns:minmax(0,1fr) 100px';
     return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-      <span>${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
       ${soldeStr}
     </div>`;
@@ -1314,8 +1755,245 @@ function updateDashboard() {
 }
 
 
+// ── ANALYTIQUE ──
+function updateAnalytics() {
+  const totalRevMensuel = revenus.reduce((s, r) => s + r.montant * (FREQ_MULTIPLIER[r.freq] || 0), 0);
+  const totalDepMensuel = depenses.reduce((s, d) => s + d.montant * (FREQ_MULTIPLIER[d.freq] || 0), 0);
+  const fluxNet = totalRevMensuel - totalDepMensuel;
+
+  // Métriques
+  const netEl = document.getElementById('an-flux-net');
+  if (netEl) {
+    netEl.textContent = (fluxNet >= 0 ? '+' : '') + '$' + fluxNet.toFixed(2);
+    netEl.className = 'metric-value ' + (fluxNet >= 0 ? 'positive' : 'negative');
+  }
+  const revEl = document.getElementById('an-rev-mois');
+  if (revEl) revEl.textContent = '+$' + totalRevMensuel.toFixed(2);
+  const depEl = document.getElementById('an-dep-mois');
+  if (depEl) depEl.textContent = '-$' + totalDepMensuel.toFixed(2);
+
+  // Répartition par catégorie
+  const catTotals = {};
+  depenses.forEach(d => {
+    const monthly = d.montant * (FREQ_MULTIPLIER[d.freq] || 0);
+    if (monthly > 0) catTotals[d.cat] = (catTotals[d.cat] || 0) + monthly;
+  });
+  const maxCat = Math.max(...Object.values(catTotals), 1);
+  const catsEl = document.getElementById('an-cats');
+  if (catsEl) {
+    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) {
+      catsEl.innerHTML = '<div class="empty-state">Aucune dépense récurrente</div>';
+    } else {
+      catsEl.innerHTML = sorted.map(([cat, val]) => {
+        const color = getCatColor(cat);
+        const pct = (val / maxCat * 100).toFixed(0);
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:4px;">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <span style="background:${color};width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block;"></span>
+              ${cat}
+            </span>
+            <span style="color:var(--text2);white-space:nowrap;">$${val.toFixed(0)}/mois</span>
+          </div>
+          <div style="background:var(--bg3);border-radius:99px;height:6px;">
+            <div style="background:${color};width:${pct}%;height:100%;border-radius:99px;transition:width 0.3s;"></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Top 5 dépenses
+  const top5El = document.getElementById('an-top5');
+  if (top5El) {
+    const sorted = [...depenses].map(d => ({ ...d, monthly: d.montant * (FREQ_MULTIPLIER[d.freq] || 0) }))
+      .filter(d => d.monthly > 0)
+      .sort((a, b) => b.monthly - a.monthly)
+      .slice(0, 5);
+    if (sorted.length === 0) {
+      top5El.innerHTML = '<div class="empty-state">Aucune dépense</div>';
+    } else {
+      top5El.innerHTML = sorted.map((d, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:13px;">
+          <span style="color:var(--text3);min-width:14px;font-weight:500;text-align:right;">${i+1}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.desc}">${d.desc}</span>
+          <span style="color:var(--red);font-weight:500;white-space:nowrap;">$${d.monthly.toFixed(0)}/m</span>
+        </div>`).join('');
+    }
+  }
+
+  // Par compte
+  const compteRevTotals = {}, compteDepTotals = {};
+  revenus.forEach(r => {
+    const monthly = r.montant * (FREQ_MULTIPLIER[r.freq] || 0);
+    const c = r.compte || '—';
+    compteRevTotals[c] = (compteRevTotals[c] || 0) + monthly;
+  });
+  depenses.forEach(d => {
+    const monthly = d.montant * (FREQ_MULTIPLIER[d.freq] || 0);
+    const c = d.compte || '—';
+    compteDepTotals[c] = (compteDepTotals[c] || 0) + monthly;
+  });
+  const allComptes = [...new Set([...Object.keys(compteRevTotals), ...Object.keys(compteDepTotals)])];
+  const comptesEl = document.getElementById('an-comptes');
+  if (comptesEl) {
+    if (allComptes.length === 0) {
+      comptesEl.innerHTML = '<div class="empty-state">Aucune donnée</div>';
+    } else {
+      comptesEl.innerHTML = allComptes.map(cp => {
+        const rev = compteRevTotals[cp] || 0;
+        const dep = compteDepTotals[cp] || 0;
+        const net = rev - dep;
+        const isValid = getComptes().includes(cp);
+        const color = isValid ? getCompteColor(cp) : null;
+        const badge = color
+          ? `<span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:99px;">${cp}</span>`
+          : `<span style="font-size:12px;color:var(--text2);">${cp}</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;flex-wrap:wrap;gap:4px;">
+          ${badge}
+          <div style="display:flex;gap:10px;">
+            <span style="color:var(--green);">+$${rev.toFixed(0)}</span>
+            <span style="color:var(--red);">-$${dep.toFixed(0)}</span>
+            <span style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:500;">=$${net.toFixed(0)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Insights
+  const insightsEl = document.getElementById('an-insights');
+  if (insightsEl) {
+    const insights = [];
+    if (totalRevMensuel === 0 && totalDepMensuel === 0) {
+      insightsEl.innerHTML = '<div class="empty-state">Ajoute des revenus et dépenses pour voir des insights.</div>';
+    } else {
+      if (fluxNet > 0) insights.push({ color: 'var(--green)', text: `Tu épargnes <strong>$${fluxNet.toFixed(0)}/mois</strong> net.` });
+      else if (fluxNet < 0) insights.push({ color: 'var(--red)', text: `Tu dépenses <strong>$${Math.abs(fluxNet).toFixed(0)}/mois</strong> de plus que tu gagnes.` });
+      if (totalRevMensuel > 0) {
+        const ratio = totalDepMensuel / totalRevMensuel * 100;
+        const color = ratio > 100 ? 'var(--red)' : ratio > 80 ? 'var(--amber)' : 'var(--text)';
+        insights.push({ color, text: `Taux de dépenses : <strong>${ratio.toFixed(0)}%</strong> de tes revenus.` });
+      }
+      const topCat = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+      if (topCat) insights.push({ color: 'var(--text2)', text: `Catégorie principale : <strong>${topCat[0]}</strong> ($${topCat[1].toFixed(0)}/mois).` });
+      const annualSavings = fluxNet * 12;
+      if (annualSavings !== 0) insights.push({ color: 'var(--text2)', text: `Projection annuelle : <strong style="color:${annualSavings>=0?'var(--green)':'var(--red)'};">${annualSavings>=0?'+':''} $${annualSavings.toFixed(0)}</strong>.` });
+      insightsEl.innerHTML = insights.map(i =>
+        `<div style="padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px;color:${i.color};line-height:1.5;">${i.text}</div>`
+      ).join('');
+    }
+  }
+
+  // Projection 6 mois
+  updateProjectionChart(fluxNet);
+}
+
+function updateProjectionChart(fluxNetMensuel) {
+  const canvas = document.getElementById('chart-projection');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const soldesComptes = getSoldesComptes();
+  const soldeVals = Object.values(soldesComptes).filter(v => !isNaN(v));
+  const soldeInit = soldeVals.length > 0 ? soldeVals.reduce((s, v) => s + v, 0) : 0;
+
+  const labels = [], data = [];
+  const now = new Date();
+  let balance = soldeInit;
+  for (let i = 0; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    labels.push(d.toLocaleString('fr-CA', { month: 'short', year: '2-digit' }));
+    data.push(parseFloat(balance.toFixed(2)));
+    balance += fluxNetMensuel;
+  }
+
+  if (projectionChart) { projectionChart.destroy(); projectionChart = null; }
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const textColor = isDark ? '#aeaeb2' : '#6b6b6b';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const lineColor = fluxNetMensuel >= 0 ? '#1D9E75' : '#E24B4A';
+
+  projectionChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: lineColor,
+        backgroundColor: lineColor + '22',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: lineColor,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(2) }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 } }
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 }, callback: v => '$' + v.toFixed(0) }
+        }
+      }
+    }
+  });
+}
+
+// ── AUTH ──
+function seConnecter() {
+  const btn = document.getElementById('btn-google-login');
+  const errEl = document.getElementById('login-error');
+  if (btn) btn.disabled = true;
+  if (errEl) errEl.style.display = 'none';
+  window._fbLogin().catch(err => {
+    if (errEl) { errEl.textContent = 'Erreur : ' + err.message; errEl.style.display = 'block'; }
+    if (btn) btn.disabled = false;
+  });
+}
+
+function seDeconnecter() {
+  if (!confirm('Se déconnecter ?')) return;
+  window._fbLogout();
+}
+
+function setupAuth() {
+  window._fbOnAuth(function(user) {
+    currentUser = user;
+    const loginScreen = document.getElementById('login-screen');
+    const appEl = document.getElementById('app');
+    if (user) {
+      if (loginScreen) loginScreen.style.display = 'none';
+      if (appEl) appEl.style.display = 'block';
+      const userInfoEl = document.getElementById('modal-user-info');
+      if (userInfoEl) userInfoEl.textContent = user.displayName ? user.displayName + ' · ' + user.email : user.email;
+      demarrerApp();
+    } else {
+      if (loginScreen) loginScreen.style.display = 'flex';
+      if (appEl) appEl.style.display = 'none';
+      depenses = []; revenus = [];
+    }
+  });
+}
+
 // ── INIT ──
-demarrerApp();
+if (window._fbReady) {
+  setupAuth();
+} else {
+  window.addEventListener('fb-ready', setupAuth, { once: true });
+}
 </script>
 </body>
 </html>
