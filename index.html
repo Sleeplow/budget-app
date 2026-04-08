@@ -1340,7 +1340,7 @@ function renderRevenus() {
   const cards=sorted.map(r=>{
     if (editingRevId===r.id) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
-      const coRev=getComptes().map(cp=>`<option value="${cp}" ${cp===r.compte?'selected':''}>${cp}</option>`).join('');
+      const coRev=getComptes().map(cp=>`<option value="${escapeHtml(cp)}" ${cp===r.compte?'selected':''}>${escapeHtml(cp)}</option>`).join('');
       return `<div class="entry-card editing">
         <div class="entry-card-row"><input class="inline-edit" id="redit-desc-${r.id}" value="${escapeHtml(r.desc)}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
@@ -1763,7 +1763,7 @@ function updateDashboard() {
       : '';
     const grid = hasSolde ? 'grid-template-columns:minmax(0,1fr) 100px 110px' : 'grid-template-columns:minmax(0,1fr) 100px';
     return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.desc} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
       ${soldeStr}
     </div>`;
@@ -1832,7 +1832,7 @@ function updateAnalytics() {
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:4px;">
             <span style="display:flex;align-items:center;gap:6px;">
               <span style="background:${color};width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block;"></span>
-              ${cat}
+              ${escapeHtml(cat)}
             </span>
             <span style="color:var(--text2);white-space:nowrap;">$${val.toFixed(0)}/mois</span>
           </div>
