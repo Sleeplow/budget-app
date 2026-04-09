@@ -2,8 +2,8 @@
 
 ## Workflow des branches
 
-- Toujours développer dans `test`
-- Merger vers `main` uniquement quand c'est validé
+- Développer dans une branche dédiée à la conversation (ex: `claude/feature-xyz`)
+- Merger vers `main` depuis la branche de travail une fois validé
 - Ne jamais committer directement dans `main`
 
 ## Stack technique
@@ -92,7 +92,7 @@ cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
 
 ## Checklist sécurité avant chaque merge vers `main`
 
-Avant de merger `test` → `main`, vérifier :
+Avant de merger vers `main`, vérifier :
 
 - [ ] Toutes les variables utilisateur dans `innerHTML` passent par `escapeHtml()`
 - [ ] Aucun `onclick="fn('${variable}')"` avec données dynamiques
