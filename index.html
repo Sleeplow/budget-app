@@ -2100,9 +2100,16 @@ function setupAuth() {
     curEl = document.getElementById('tab-' + TABS[curIdx]);
     adjEl = document.getElementById('tab-' + TABS[nextIdx]);
 
+    // Capture scroll offset BEFORE going fixed (section top relative to viewport)
+    const curTopBefore = curEl.getBoundingClientRect().top;
+    const neededScrollTop = Math.max(0, top - curTopBefore);
+
     const base = `position:fixed;left:${Math.round(left)}px;width:${Math.round(width)}px;top:${top}px;bottom:0;overflow-y:auto;z-index:20;background:var(--bg3);padding:0 1rem 3rem;box-sizing:border-box;transition:none;will-change:transform;`;
     curEl.style.cssText = base + 'display:block;transform:translateX(0);';
     adjEl.style.cssText = base + `display:block;transform:translateX(${startOffset}px);`;
+
+    // Restore visual scroll position so the content doesn't jump to top
+    curEl.scrollTop = neededScrollTop;
 
     dragging = true;
     return true;
