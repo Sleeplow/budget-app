@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1D9E75"/>
+
+  <!--
+    Pixel art $ sur grille 7×10 blocs de 32px
+    + extensions tige au-dessus et en-dessous (1 bloc chacune)
+    Total hauteur : 12 blocs × 32 = 384px  → offset Y = (512-384)/2 = 64
+    Total largeur : 7 blocs × 32 = 224px   → offset X = (512-224)/2 = 144
+
+    Colonnes X : c0=144 c1=176 c2=208 c3=240 c4=272 c5=304 c6=336
+    Lignes   Y : r-1=64 r0=96 r1=128 r2=160 r3=192 r4=224 r5=256
+                 r6=288 r7=320 r8=352 r9=384 r10=416
+
+    Tige (col 3, toutes les lignes) :
+  -->
+  <rect x="240" y="64"  width="32" height="384" fill="white"/>
+
+  <!-- r0 : arc haut → c1-c2 et c4-c5 -->
+  <rect x="176" y="96"  width="64" height="32" fill="white"/>
+  <rect x="272" y="96"  width="64" height="32" fill="white"/>
+
+  <!-- r1 : côtés haut → c0-c1 et c5-c6 -->
+  <rect x="144" y="128" width="64" height="32" fill="white"/>
+  <rect x="304" y="128" width="64" height="32" fill="white"/>
+
+  <!-- r2 : côté gauche seulement → c0-c1 -->
+  <rect x="144" y="160" width="64" height="32" fill="white"/>
+
+  <!-- r3 : barre centrale haute → c1-c2 et c4-c5 -->
+  <rect x="176" y="192" width="64" height="32" fill="white"/>
+  <rect x="272" y="192" width="64" height="32" fill="white"/>
+
+  <!-- r4-r5 : côté droit seulement → c4-c6 (deux rangées) -->
+  <rect x="272" y="224" width="96" height="64" fill="white"/>
+
+  <!-- r6 : barre centrale basse → c1-c2 et c4-c5 -->
+  <rect x="176" y="288" width="64" height="32" fill="white"/>
+  <rect x="272" y="288" width="64" height="32" fill="white"/>
+
+  <!-- r7 : côté gauche seulement → c0-c1 -->
+  <rect x="144" y="320" width="64" height="32" fill="white"/>
+
+  <!-- r8 : côtés bas → c0-c1 et c5-c6 -->
+  <rect x="144" y="352" width="64" height="32" fill="white"/>
+  <rect x="304" y="352" width="64" height="32" fill="white"/>
+
+  <!-- r9 : arc bas → c1-c2 et c4-c5 -->
+  <rect x="176" y="384" width="64" height="32" fill="white"/>
+  <rect x="272" y="384" width="64" height="32" fill="white"/>
+</svg>
