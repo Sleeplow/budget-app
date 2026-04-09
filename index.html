@@ -2075,7 +2075,7 @@ function setupAuth() {
   let startX = 0, startY = 0, startTime = 0;
   let dragging = false, horizontal = null, transitioning = false;
   let curEl = null, adjEl = null, startOffset = 0, adjTabIdx = -1;
-  let transTimer = null;
+  let transTimer = null, savedScrollY = 0;
 
   function getActiveIdx() {
     return TABS.findIndex(id => document.getElementById('tab-' + id)?.classList.contains('active'));
@@ -2100,7 +2100,8 @@ function setupAuth() {
     curEl = document.getElementById('tab-' + TABS[curIdx]);
     adjEl = document.getElementById('tab-' + TABS[nextIdx]);
 
-    // Capture scroll offset BEFORE going fixed (section top relative to viewport)
+    // Capture state BEFORE going fixed (section top relative to viewport + page scroll)
+    savedScrollY = window.scrollY;
     const curTopBefore = curEl.getBoundingClientRect().top;
     const neededScrollTop = Math.max(0, top - curTopBefore);
 
@@ -2115,9 +2116,10 @@ function setupAuth() {
     return true;
   }
 
-  function cleanup() {
+  function cleanup(restoreScroll = false) {
     if (curEl) { curEl.style.cssText = ''; curEl = null; }
     if (adjEl) { adjEl.style.cssText = ''; adjEl = null; }
+    if (restoreScroll) window.scrollTo(0, savedScrollY);
   }
 
   function finishDrag(dx, dt) {
@@ -2148,7 +2150,7 @@ function setupAuth() {
       adjEl.style.transform = `translateX(${startOffset}px)`;
       transitioning = true;
       transTimer = setTimeout(() => {
-        cleanup();
+        cleanup(true); // snap-back: restaurer la position de scroll
         transitioning = false;
         transTimer = null;
       }, dur + 20);
@@ -2188,7 +2190,7 @@ function setupAuth() {
   }, { passive: true });
 
   document.addEventListener('touchcancel', () => {
-    if (dragging) { dragging = false; cleanup(); }
+    if (dragging) { dragging = false; cleanup(true); }
     horizontal = null;
   }, { passive: true });
 })();
