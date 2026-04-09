@@ -2016,7 +2016,9 @@ function seConnecter() {
   if (btn) btn.disabled = true;
   if (errEl) errEl.style.display = 'none';
   window._fbLogin().catch(err => {
-    if (errEl) { errEl.textContent = 'Erreur : ' + err.message; errEl.style.display = 'block'; }
+    const detail = err.code ? err.code + ' — ' + err.message : err.message;
+    console.error('Login error:', err.code, err.message, err);
+    if (errEl) { errEl.textContent = 'Erreur : ' + detail; errEl.style.display = 'block'; }
     if (btn) btn.disabled = false;
   });
 }
