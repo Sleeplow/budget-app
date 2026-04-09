@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Budget">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#eeede9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#3a3a3c" media="(prefers-color-scheme: dark)">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://apis.google.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://budget-personnel-2fb22.firebaseapp.com https://accounts.google.com;">
 <title>Budget Personnel</title>
 <style>
@@ -2210,6 +2213,13 @@ if (window._fbReady) {
   setupAuth();
 } else {
   window.addEventListener('fb-ready', setupAuth, { once: true });
+}
+
+// ── SERVICE WORKER (Android PWA) ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
 }
 </script>
 </body>

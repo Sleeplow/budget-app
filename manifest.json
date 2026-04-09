@@ -1,0 +1,18 @@
+{
+  "name": "Budget Personnel",
+  "short_name": "Budget",
+  "description": "Gestion de budget personnel",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eeede9",
+  "theme_color": "#eeede9",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
