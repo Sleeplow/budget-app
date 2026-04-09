@@ -308,7 +308,14 @@ window.dispatchEvent(new Event('fb-ready'));
         </div>
         <div style="min-width:180px;">
           <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
-          <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:180px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
+              <input type="checkbox" id="dash-aujourd-hui-termine" onchange="updateDashboard()" style="width:14px;height:14px;cursor:pointer;">
+              Aujourd'hui terminé
+            </label>
+            <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:160px;">
+            <button onclick="dashDatePlusUnMois()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;">+1 mois</button>
+          </div>
         </div>
       </div>
     </div>
@@ -835,6 +842,14 @@ function refreshDashFiltreCompte() {
 
 function onFiltreCompteChange(doUpdate=true) {
   if (doUpdate) updateDashboard();
+}
+
+function dashDatePlusUnMois() {
+  const el = document.getElementById('dash-date-cible');
+  if (!el) return;
+  const val = el.value || addDaysStr(today(), 30);
+  el.value = addMonths(new Date(val + 'T00:00:00'), 1).toISOString().slice(0, 10);
+  updateDashboard();
 }
 
 function changerFormatDate(fmt) {
@@ -1730,9 +1745,11 @@ function updateDashboard() {
   // Utiliser la date cible du champ dashboard
   const dateCibleEl = document.getElementById('dash-date-cible');
   const end30 = dateCibleEl && dateCibleEl.value ? dateCibleEl.value : addDaysStr(t,30);
+  const aujourdHuiTermineEl = document.getElementById('dash-aujourd-hui-termine');
+  const startDate = (aujourdHuiTermineEl && aujourdHuiTermineEl.checked) ? addDaysStr(t,1) : t;
   let tm=0,t30=0,rm=0,r30=0;
-  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,t,end30).forEach(()=>t30+=d.montant);});
-  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,t,end30).forEach(()=>r30+=r.montant);});
+  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,startDate,end30).forEach(()=>t30+=d.montant);});
+  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,startDate,end30).forEach(()=>r30+=r.montant);});
   document.getElementById('m-mois').textContent='-$'+tm.toFixed(2);
   document.getElementById('m-30j').textContent='-$'+t30.toFixed(2);
   document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
@@ -1742,8 +1759,8 @@ function updateDashboard() {
   let all=[];
   const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
-  depFiltre.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revFiltre.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
+  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
   // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
   all.sort((a,b)=>{
     const dateCmp = a.date.localeCompare(b.date);
