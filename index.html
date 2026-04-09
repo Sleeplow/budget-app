@@ -752,8 +752,9 @@ function setSoldeCompte(compte, val) {
 }
 
 function getSoldeTotalAuto() {
+  const comptes = getComptes();
   const soldes = getSoldesComptes();
-  const vals = Object.values(soldes).filter(v => !isNaN(v));
+  const vals = comptes.map(cp => soldes[cp]).filter(v => v !== undefined && !isNaN(v));
   if (vals.length === 0) return null;
   return vals.reduce((s, v) => s + v, 0);
 }
@@ -784,6 +785,12 @@ function onSoldeTotalChange() {
 function renderDashSoldesComptes() {
   const comptes = getComptes();
   const soldes = getSoldesComptes();
+  // Purger les entrées orphelines (comptes supprimés ou par défaut)
+  const soldesPropres = {};
+  comptes.forEach(cp => { if (soldes[cp] !== undefined) soldesPropres[cp] = soldes[cp]; });
+  if (Object.keys(soldesPropres).length !== Object.keys(soldes).length) {
+    localStorage.setItem(SOLDES_KEY, JSON.stringify(soldesPropres));
+  }
   const container = document.getElementById('dash-soldes-comptes');
   if (!container) return;
   container.innerHTML = comptes.map(cp => {
@@ -1194,6 +1201,8 @@ async function chargerTout(showMsg=false) {
     if (Array.isArray(data.comptes) && data.comptes.length > 0) {
       localStorage.setItem('budget_comptes', JSON.stringify(data.comptes));
       refreshCompteSelects();
+      refreshDashFiltreCompte();
+      renderDashSoldesComptes();
     }
     // Couleurs
     if (data.categoryColors) { categoryColors = data.categoryColors; localStorage.setItem('budget_cat_colors', JSON.stringify(categoryColors)); }
