@@ -1278,8 +1278,14 @@ async function syncNow() { await chargerTout(true); }
 
 // ── NAVIGATION ──
 const TABS = ['tableau-bord', 'transactions', 'revenus', 'depenses'];
+const tabScrollPos = {}; // mémorise la position de scroll par onglet
 
-function showTab(id, btn) {
+function showTab(id, btn, skipScroll = false) {
+  if (!skipScroll) {
+    // Sauvegarder la position de l'onglet actuel avant de quitter
+    const curId = TABS.find(t => document.getElementById('tab-'+t)?.classList.contains('active'));
+    if (curId) tabScrollPos[curId] = window.scrollY;
+  }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
@@ -1289,6 +1295,7 @@ function showTab(id, btn) {
   if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
   if (id==='revenus') { editingRevId=null; renderRevenus(); }
+  if (!skipScroll) window.scrollTo(0, tabScrollPos[id] || 0);
 }
 
 // ── REVENUS CRUD ──
@@ -2100,8 +2107,9 @@ function setupAuth() {
     curEl = document.getElementById('tab-' + TABS[curIdx]);
     adjEl = document.getElementById('tab-' + TABS[nextIdx]);
 
-    // Capture state BEFORE going fixed (section top relative to viewport + page scroll)
+    // Capture state BEFORE going fixed
     savedScrollY = window.scrollY;
+    tabScrollPos[TABS[curIdx]] = savedScrollY; // mémoriser la position de l'onglet actuel
     const curTopBefore = curEl.getBoundingClientRect().top;
     const neededScrollTop = Math.max(0, top - curTopBefore);
 
@@ -2109,8 +2117,9 @@ function setupAuth() {
     curEl.style.cssText = base + 'display:block;transform:translateX(0);';
     adjEl.style.cssText = base + `display:block;transform:translateX(${startOffset}px);`;
 
-    // Restore visual scroll position so the content doesn't jump to top
+    // Restaurer les positions de scroll: curEl où on était, adjEl où il se souvient
     curEl.scrollTop = neededScrollTop;
+    adjEl.scrollTop = tabScrollPos[TABS[nextIdx]] || 0;
 
     dragging = true;
     return true;
@@ -2138,8 +2147,9 @@ function setupAuth() {
       transitioning = true;
       const savedIdx = adjTabIdx;
       transTimer = setTimeout(() => {
-        cleanup();
-        showTab(TABS[savedIdx]);
+        cleanup(false);
+        window.scrollTo(0, tabScrollPos[TABS[savedIdx]] || 0);
+        showTab(TABS[savedIdx], null, true); // skipScroll: déjà géré ci-dessus
         transitioning = false;
         transTimer = null;
       }, dur + 20);
