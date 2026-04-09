@@ -2070,21 +2070,119 @@ function setupAuth() {
   });
 }
 
-// ── SWIPE NAVIGATION (iPhone) ──
+// ── SWIPE NAVIGATION (iOS) ──
 (function() {
-  let touchStartX = 0, touchStartY = 0;
+  let startX = 0, startY = 0, startTime = 0;
+  let dragging = false, horizontal = null, transitioning = false;
+  let curEl = null, adjEl = null, startOffset = 0, adjTabIdx = -1;
+  let transTimer = null;
+
+  function getActiveIdx() {
+    return TABS.findIndex(id => document.getElementById('tab-' + id)?.classList.contains('active'));
+  }
+
+  function headerBottom() {
+    const el = document.querySelector('.app-top');
+    return el ? Math.round(el.getBoundingClientRect().bottom) : 0;
+  }
+
+  function beginDrag(dx) {
+    const curIdx = getActiveIdx();
+    const nextIdx = dx < 0 ? curIdx + 1 : curIdx - 1;
+    if (nextIdx < 0 || nextIdx >= TABS.length) return false;
+
+    const appEl = document.getElementById('app');
+    const { left, width } = appEl.getBoundingClientRect();
+    const top = headerBottom();
+    startOffset = dx < 0 ? width : -width;
+    adjTabIdx = nextIdx;
+
+    curEl = document.getElementById('tab-' + TABS[curIdx]);
+    adjEl = document.getElementById('tab-' + TABS[nextIdx]);
+
+    const base = `position:fixed;left:${Math.round(left)}px;width:${Math.round(width)}px;top:${top}px;bottom:0;overflow-y:auto;z-index:20;background:var(--bg3);padding:0 1rem 3rem;box-sizing:border-box;transition:none;will-change:transform;`;
+    curEl.style.cssText = base + 'display:block;transform:translateX(0);';
+    adjEl.style.cssText = base + `display:block;transform:translateX(${startOffset}px);`;
+
+    dragging = true;
+    return true;
+  }
+
+  function cleanup() {
+    if (curEl) { curEl.style.cssText = ''; curEl = null; }
+    if (adjEl) { adjEl.style.cssText = ''; adjEl = null; }
+  }
+
+  function finishDrag(dx, dt) {
+    dragging = false;
+    const w = Math.abs(startOffset);
+    const vel = dt > 0 ? Math.abs(dx) / dt : 0;
+    const goForward = (dx * startOffset < 0) && (Math.abs(dx) > w * 0.33 || vel > 0.35);
+    const ease = 'cubic-bezier(0.25,0.46,0.45,0.94)';
+
+    if (goForward) {
+      const progress = Math.min(Math.abs(dx) / w, 1);
+      const dur = Math.max(80, Math.round((1 - progress) * 280));
+      curEl.style.transition = adjEl.style.transition = `transform ${dur}ms ${ease}`;
+      curEl.style.transform = `translateX(${-startOffset}px)`;
+      adjEl.style.transform = 'translateX(0)';
+      transitioning = true;
+      const savedIdx = adjTabIdx;
+      transTimer = setTimeout(() => {
+        cleanup();
+        showTab(TABS[savedIdx]);
+        transitioning = false;
+        transTimer = null;
+      }, dur + 20);
+    } else {
+      const dur = 260;
+      curEl.style.transition = adjEl.style.transition = `transform ${dur}ms ${ease}`;
+      curEl.style.transform = 'translateX(0)';
+      adjEl.style.transform = `translateX(${startOffset}px)`;
+      transitioning = true;
+      transTimer = setTimeout(() => {
+        cleanup();
+        transitioning = false;
+        transTimer = null;
+      }, dur + 20);
+    }
+  }
+
   document.addEventListener('touchstart', e => {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
+    if (transitioning || document.querySelector('.modal-overlay.open')) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+    horizontal = null;
   }, { passive: true });
-  document.addEventListener('touchend', e => {
+
+  document.addEventListener('touchmove', e => {
     if (document.querySelector('.modal-overlay.open')) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
-    const current = TABS.findIndex(id => document.getElementById('tab-'+id)?.classList.contains('active'));
-    if (dx < 0 && current < TABS.length - 1) showTab(TABS[current + 1]);
-    if (dx > 0 && current > 0) showTab(TABS[current - 1]);
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    if (horizontal === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      horizontal = Math.abs(dx) > Math.abs(dy);
+      if (horizontal && !beginDrag(dx)) horizontal = false;
+      return;
+    }
+    if (!horizontal || !dragging) return;
+    e.preventDefault();
+
+    // Rubber band when swiping wrong direction
+    const clampedDx = (dx * startOffset > 0) ? dx * 0.15 : dx;
+    curEl.style.transform = `translateX(${clampedDx}px)`;
+    adjEl.style.transform = `translateX(${startOffset + clampedDx}px)`;
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (dragging) finishDrag(e.changedTouches[0].clientX - startX, Date.now() - startTime);
+    horizontal = null;
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    if (dragging) { dragging = false; cleanup(); }
+    horizontal = null;
   }, { passive: true });
 })();
 
