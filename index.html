@@ -308,7 +308,14 @@ window.dispatchEvent(new Event('fb-ready'));
         </div>
         <div style="min-width:180px;">
           <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
-          <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:180px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
+              <input type="checkbox" id="dash-aujourd-hui-termine" onchange="updateDashboard()" style="width:14px;height:14px;cursor:pointer;">
+              Aujourd'hui terminé
+            </label>
+            <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:160px;">
+            <button onclick="dashDatePlusUnMois()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;">+1 mois</button>
+          </div>
         </div>
       </div>
     </div>
@@ -837,6 +844,14 @@ function onFiltreCompteChange(doUpdate=true) {
   if (doUpdate) updateDashboard();
 }
 
+function dashDatePlusUnMois() {
+  const el = document.getElementById('dash-date-cible');
+  if (!el) return;
+  const val = el.value || addDaysStr(today(), 30);
+  el.value = addMonths(new Date(val + 'T00:00:00'), 1).toISOString().slice(0, 10);
+  updateDashboard();
+}
+
 function changerFormatDate(fmt) {
   localStorage.setItem('budget_date_format', fmt);
   // Rafraîchir toutes les vues qui affichent des dates
@@ -1278,8 +1293,14 @@ async function syncNow() { await chargerTout(true); }
 
 // ── NAVIGATION ──
 const TABS = ['tableau-bord', 'transactions', 'revenus', 'depenses'];
+const tabScrollPos = {}; // mémorise la position de scroll par onglet
 
-function showTab(id, btn) {
+function showTab(id, btn, skipScroll = false) {
+  if (!skipScroll) {
+    // Sauvegarder la position de l'onglet actuel avant de quitter
+    const curId = TABS.find(t => document.getElementById('tab-'+t)?.classList.contains('active'));
+    if (curId) tabScrollPos[curId] = window.scrollY;
+  }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
@@ -1289,6 +1310,7 @@ function showTab(id, btn) {
   if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
   if (id==='revenus') { editingRevId=null; renderRevenus(); }
+  if (!skipScroll) window.scrollTo(0, tabScrollPos[id] || 0);
 }
 
 // ── REVENUS CRUD ──
@@ -1723,9 +1745,11 @@ function updateDashboard() {
   // Utiliser la date cible du champ dashboard
   const dateCibleEl = document.getElementById('dash-date-cible');
   const end30 = dateCibleEl && dateCibleEl.value ? dateCibleEl.value : addDaysStr(t,30);
+  const aujourdHuiTermineEl = document.getElementById('dash-aujourd-hui-termine');
+  const startDate = (aujourdHuiTermineEl && aujourdHuiTermineEl.checked) ? addDaysStr(t,1) : t;
   let tm=0,t30=0,rm=0,r30=0;
-  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,t,end30).forEach(()=>t30+=d.montant);});
-  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,t,end30).forEach(()=>r30+=r.montant);});
+  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,startDate,end30).forEach(()=>t30+=d.montant);});
+  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,startDate,end30).forEach(()=>r30+=r.montant);});
   document.getElementById('m-mois').textContent='-$'+tm.toFixed(2);
   document.getElementById('m-30j').textContent='-$'+t30.toFixed(2);
   document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
@@ -1735,8 +1759,8 @@ function updateDashboard() {
   let all=[];
   const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
-  depFiltre.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revFiltre.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
+  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
   // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
   all.sort((a,b)=>{
     const dateCmp = a.date.localeCompare(b.date);
@@ -2075,7 +2099,7 @@ function setupAuth() {
   let startX = 0, startY = 0, startTime = 0;
   let dragging = false, horizontal = null, transitioning = false;
   let curEl = null, adjEl = null, startOffset = 0, adjTabIdx = -1;
-  let transTimer = null;
+  let transTimer = null, savedScrollY = 0;
 
   function getActiveIdx() {
     return TABS.findIndex(id => document.getElementById('tab-' + id)?.classList.contains('active'));
@@ -2100,17 +2124,28 @@ function setupAuth() {
     curEl = document.getElementById('tab-' + TABS[curIdx]);
     adjEl = document.getElementById('tab-' + TABS[nextIdx]);
 
+    // Capture state BEFORE going fixed
+    savedScrollY = window.scrollY;
+    tabScrollPos[TABS[curIdx]] = savedScrollY; // mémoriser la position de l'onglet actuel
+    const curTopBefore = curEl.getBoundingClientRect().top;
+    const neededScrollTop = Math.max(0, top - curTopBefore);
+
     const base = `position:fixed;left:${Math.round(left)}px;width:${Math.round(width)}px;top:${top}px;bottom:0;overflow-y:auto;z-index:20;background:var(--bg3);padding:0 1rem 3rem;box-sizing:border-box;transition:none;will-change:transform;`;
     curEl.style.cssText = base + 'display:block;transform:translateX(0);';
     adjEl.style.cssText = base + `display:block;transform:translateX(${startOffset}px);`;
+
+    // Restaurer les positions de scroll: curEl où on était, adjEl où il se souvient
+    curEl.scrollTop = neededScrollTop;
+    adjEl.scrollTop = tabScrollPos[TABS[nextIdx]] || 0;
 
     dragging = true;
     return true;
   }
 
-  function cleanup() {
+  function cleanup(restoreScroll = false) {
     if (curEl) { curEl.style.cssText = ''; curEl = null; }
     if (adjEl) { adjEl.style.cssText = ''; adjEl = null; }
+    if (restoreScroll) window.scrollTo(0, savedScrollY);
   }
 
   function finishDrag(dx, dt) {
@@ -2129,8 +2164,9 @@ function setupAuth() {
       transitioning = true;
       const savedIdx = adjTabIdx;
       transTimer = setTimeout(() => {
-        cleanup();
-        showTab(TABS[savedIdx]);
+        cleanup(false);
+        window.scrollTo(0, tabScrollPos[TABS[savedIdx]] || 0);
+        showTab(TABS[savedIdx], null, true); // skipScroll: déjà géré ci-dessus
         transitioning = false;
         transTimer = null;
       }, dur + 20);
@@ -2141,7 +2177,7 @@ function setupAuth() {
       adjEl.style.transform = `translateX(${startOffset}px)`;
       transitioning = true;
       transTimer = setTimeout(() => {
-        cleanup();
+        cleanup(true); // snap-back: restaurer la position de scroll
         transitioning = false;
         transTimer = null;
       }, dur + 20);
@@ -2181,7 +2217,7 @@ function setupAuth() {
   }, { passive: true });
 
   document.addEventListener('touchcancel', () => {
-    if (dragging) { dragging = false; cleanup(); }
+    if (dragging) { dragging = false; cleanup(true); }
     horizontal = null;
   }, { passive: true });
 })();
