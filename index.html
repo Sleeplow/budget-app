@@ -308,13 +308,13 @@ window.dispatchEvent(new Event('fb-ready'));
         </div>
         <div style="min-width:180px;">
           <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
-              <input type="checkbox" id="dash-aujourd-hui-termine" onchange="updateDashboard()" style="width:14px;height:14px;cursor:pointer;">
-              Aujourd'hui terminé
-            </label>
-            <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:160px;">
-            <button onclick="dashDatePlusUnMois()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;">+1 mois</button>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:8px;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
+            <input type="checkbox" id="dash-aujourd-hui-termine" onchange="updateDashboard()" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+            Aujourd'hui terminé
+          </label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="flex:1;min-width:0;width:auto;">
+            <button onclick="dashDatePlusUnMois()" style="height:36px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;flex-shrink:0;">+1 mois</button>
           </div>
         </div>
       </div>
