@@ -305,11 +305,18 @@ window.dispatchEvent(new Event('fb-ready'));
             <span style="font-size:13px;color:var(--text3);">$</span>
           </div>
           <div id="dash-soldes-comptes"></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);">
+            <button id="btn-auto-suivi" onclick="toggleAutoSuivi()" style="height:30px;padding:0 12px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--text2);">
+              <span id="auto-suivi-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;display:inline-block;"></span>
+              Suivi automatique
+            </button>
+            <div id="auto-suivi-info" style="font-size:11px;color:var(--text3);margin-top:5px;"></div>
+          </div>
         </div>
         <div style="min-width:180px;">
           <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
           <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:8px;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
-            <input type="checkbox" id="dash-aujourd-hui-termine" onchange="updateDashboard()" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+            <input type="checkbox" id="dash-aujourd-hui-termine" onchange="onAujourdHuiTermineChange()" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
             Aujourd'hui terminé
           </label>
           <div style="display:flex;align-items:center;gap:6px;">
@@ -739,6 +746,7 @@ function demarrerApp() {
   refreshCompteSelects();
   refreshDashFiltreCompte();
   renderDashSoldesComptes();
+  renderAutoSuiviToggle();
   chargerTout();
 }
 
@@ -1228,7 +1236,8 @@ async function chargerTout(showMsg=false) {
     // Revenus
     revenus = Array.isArray(data.revenus) ? data.revenus.map(mapRev) : [];
     setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
+    runAutoSuivi();
+    renderDepenses(); renderRevenus(); renderDashSoldesComptes(); updateDashboard(); updateAnalytics();
     if(showMsg) showToast('Données synchronisées !');
   } catch(e) {
     console.error('chargerTout erreur:', e);
@@ -1708,6 +1717,93 @@ function annulerImport() {
   document.getElementById('import-preview-zone').innerHTML='';
   document.getElementById('import-file').value='';
   showToast('Import annulé','info');
+}
+
+// ── SUIVI AUTOMATIQUE ──
+const AUTO_SUIVI_KEY = 'budget_auto_suivi';
+const AUTO_SUIVI_DATE_KEY = 'budget_auto_suivi_date';
+
+function isAutoSuiviEnabled() {
+  return localStorage.getItem(AUTO_SUIVI_KEY) === '1';
+}
+
+function getAutoSuiviStartDate() {
+  const el = document.getElementById('dash-aujourd-hui-termine');
+  return (el && el.checked) ? addDaysStr(today(), 1) : today();
+}
+
+function toggleAutoSuivi() {
+  const enabled = !isAutoSuiviEnabled();
+  localStorage.setItem(AUTO_SUIVI_KEY, enabled ? '1' : '0');
+  if (enabled) {
+    localStorage.setItem(AUTO_SUIVI_DATE_KEY, getAutoSuiviStartDate());
+    showToast('Suivi automatique activé', 'success');
+  } else {
+    showToast('Suivi automatique désactivé', 'info');
+  }
+  renderAutoSuiviToggle();
+}
+
+function runAutoSuivi() {
+  if (!isAutoSuiviEnabled() || !currentUser) return;
+  const lastDate = localStorage.getItem(AUTO_SUIVI_DATE_KEY);
+  const startDate = getAutoSuiviStartDate();
+  if (!lastDate) { localStorage.setItem(AUTO_SUIVI_DATE_KEY, startDate); return; }
+  if (startDate <= lastDate) return;
+
+  const fromDate = lastDate;
+  const toDate = addDaysStr(startDate, -1);
+  const soldesComptes = getSoldesComptes();
+  const comptes = getComptes();
+  let totalDelta = 0;
+  let changed = false;
+
+  comptes.forEach(cp => {
+    if (soldesComptes[cp] === undefined) return;
+    let delta = 0;
+    revenus.filter(r => r.compte === cp).forEach(r => {
+      getOccurrences(r, fromDate, toDate).forEach(() => { delta += r.montant; });
+    });
+    depenses.filter(d => d.compte === cp).forEach(d => {
+      getOccurrences(d, fromDate, toDate).forEach(() => { delta -= d.montant; });
+    });
+    if (delta !== 0) {
+      setSoldeCompte(cp, soldesComptes[cp] + delta);
+      totalDelta += delta;
+      changed = true;
+    }
+  });
+
+  localStorage.setItem(AUTO_SUIVI_DATE_KEY, startDate);
+
+  if (changed) {
+    const jours = Math.round((new Date(startDate+'T00:00:00') - new Date(fromDate+'T00:00:00')) / 86400000);
+    const signe = totalDelta >= 0 ? '+' : '';
+    showToast(`Soldes mis à jour (${jours} jour${jours > 1 ? 's' : ''} · ${signe}$${Math.abs(totalDelta).toFixed(2)})`, 'info');
+  }
+
+  renderAutoSuiviToggle();
+}
+
+function renderAutoSuiviToggle() {
+  const dot = document.getElementById('auto-suivi-dot');
+  const btn = document.getElementById('btn-auto-suivi');
+  const info = document.getElementById('auto-suivi-info');
+  if (!dot || !btn) return;
+  const enabled = isAutoSuiviEnabled();
+  dot.style.background = enabled ? 'var(--green)' : 'var(--text3)';
+  btn.style.color = enabled ? 'var(--green)' : 'var(--text2)';
+  btn.style.borderColor = enabled ? 'var(--green)' : 'var(--border2)';
+  if (info) {
+    const lastDate = localStorage.getItem(AUTO_SUIVI_DATE_KEY);
+    info.textContent = enabled && lastDate ? `Actif · suivi depuis le ${formatDate(lastDate)}` : '';
+  }
+}
+
+function onAujourdHuiTermineChange() {
+  runAutoSuivi();
+  renderDashSoldesComptes();
+  updateDashboard();
 }
 
 // ── CALCULS ──
