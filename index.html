@@ -1734,7 +1734,7 @@ function updateDashboard() {
   const isFiltreCompte = filtreCompte !== 'tous';
   const siGlobal = parseFloat(document.getElementById('solde-compte').value)||null;
   const soldesComptes = getSoldesComptes();
-  const anyHasSolde = getComptes().some(cp => soldesComptes[cp] !== undefined && !isNaN(soldesComptes[cp]));
+  const anyHasSolde = siGlobal !== null || getComptes().some(cp => soldesComptes[cp] !== undefined && !isNaN(soldesComptes[cp]));
   const siFiltre = isFiltreCompte ? (anyHasSolde ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : 0) : null) : null;
   const si = isFiltreCompte ? siFiltre : siGlobal;
   const el=document.getElementById('m-solde');
