@@ -103,6 +103,8 @@
   .section { display: none; } .section.active { display: block; }
   .empty-state { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
   .freq-tag { font-size: 11px; color: var(--text3); }
+  .qt-desc { cursor: pointer; color: var(--amber); }
+  .qt-desc:hover { text-decoration: underline; text-underline-offset: 2px; }
   .inline-edit { height: 30px; font-size: 13px; padding: 0 6px; min-width: 0; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
   .edit-actions { display: flex; gap: 6px; }
   .divider { width: 1px; height: 24px; background: var(--border); }
@@ -340,6 +342,7 @@ window.dispatchEvent(new Event('fb-ready'));
         <div class="section-title" style="margin-bottom:0;">Prochaines transactions</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <select id="dash-filtre-compte" onchange="onFiltreCompteChange()" style="height:30px;font-size:12px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);"></select>
+          <button onclick="ouvrirQuickTx()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--amber);border-radius:var(--radius-sm);background:rgba(239,159,39,0.1);color:var(--amber);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">⚡ Rapide</button>
           <span id="dash-date-label" style="font-size:12px;color:var(--text3);"></span>
         </div>
       </div>
@@ -529,6 +532,35 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-quick-tx" onclick="fermerQuickTxSiOverlay(event)">
+  <div class="modal" style="max-width:380px;">
+    <h2 id="qt-modal-title" style="font-size:16px;">⚡ Transaction rapide</h2>
+    <div class="form-group" style="margin-bottom:10px;">
+      <label>Description</label>
+      <input type="text" id="qt-desc" placeholder="Ex: Café, épicerie..." maxlength="80">
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;margin-bottom:10px;align-items:end;">
+      <div class="form-group">
+        <label>Type</label>
+        <button id="qt-sign-btn" onclick="toggleQtSign()" style="height:36px;padding:0 12px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;min-width:96px;background:rgba(226,75,74,0.1);color:var(--red);">− Dépense</button>
+      </div>
+      <div class="form-group">
+        <label>Montant ($)</label>
+        <input type="number" id="qt-montant" placeholder="0.00" step="0.01" min="0">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Compte <span style="color:var(--red);font-size:11px;">requis</span></label>
+      <select id="qt-compte"></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+      <button id="qt-delete-btn" class="btn btn-red" style="display:none;margin-right:auto;" onclick="supprimerQuickTx()">Supprimer</button>
+      <button class="btn btn-cancel" onclick="fermerQuickTx()">Annuler</button>
+      <button class="btn" style="background:var(--amber);color:#fff;border-color:var(--amber);" onclick="confirmerQuickTx()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
 <div id="custom-color-modal" class="modal-overlay" style="z-index:400;">
   <div class="modal" style="max-width:300px;width:100%;">
     <h2 style="font-size:15px;">Couleur personnalisée</h2>
@@ -575,6 +607,8 @@ let categoryColors = {};
 let compteColors = {};
 let customColors = [];
 let colorPickerTarget = null;
+let qtSignIsExpense = true;
+let editingQtId = null;
 
 // ── SÉCURITÉ ──
 function escapeHtml(str) {
@@ -734,6 +768,7 @@ function setSyncStatus(state, msg) {
 
 // ── CONFIG ──
 function demarrerApp() {
+  purgeOldQuickTransactions();
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display='block';
   const depDate = document.getElementById('dep-date');
@@ -753,6 +788,28 @@ function demarrerApp() {
 // ── MODAL ──
 // ── SOLDES PAR COMPTE ──
 const SOLDES_KEY = 'budget_soldes_comptes';
+const GLOBAL_SOLDE_KEY = 'budget_solde_global';
+const QUICK_TX_KEY = 'budget_quick_transactions';
+
+function getGlobalSolde() {
+  try { const v = localStorage.getItem(GLOBAL_SOLDE_KEY); return v !== null ? parseFloat(v) : null; } catch(e) { return null; }
+}
+function setGlobalSolde(val) {
+  if (val === null || isNaN(val)) localStorage.removeItem(GLOBAL_SOLDE_KEY);
+  else localStorage.setItem(GLOBAL_SOLDE_KEY, String(parseFloat(val)));
+}
+function getQuickTransactions() {
+  try { return JSON.parse(localStorage.getItem(QUICK_TX_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveQuickTransactions(list) {
+  localStorage.setItem(QUICK_TX_KEY, JSON.stringify(list));
+}
+function purgeOldQuickTransactions() {
+  const t = today();
+  const list = getQuickTransactions();
+  const kept = list.filter(q => q.date === t);
+  if (kept.length !== list.length) saveQuickTransactions(kept);
+}
 
 function getSoldesComptes() {
   try { return JSON.parse(localStorage.getItem(SOLDES_KEY) || '{}'); }
@@ -776,6 +833,8 @@ function getSoldeTotalAuto() {
 
 function onSoldeCompteInput(compte, val) {
   setSoldeCompte(compte, val === '' ? null : val);
+  // Première entrée par compte → effacer le solde global persisté
+  if (getSoldeTotalAuto() !== null) setGlobalSolde(null);
   const total = getSoldeTotalAuto();
   const totalEl = document.getElementById('solde-compte');
   if (total !== null) {
@@ -794,7 +853,12 @@ function onSoldeCompteInput(compte, val) {
 
 function onSoldeTotalChange() {
   const total = getSoldeTotalAuto();
-  if (total === null) updateDashboard();
+  if (total === null) {
+    // Mode global : persister la valeur saisie
+    const val = parseFloat(document.getElementById('solde-compte').value);
+    setGlobalSolde(isNaN(val) ? null : val);
+    updateDashboard();
+  }
 }
 
 function renderDashSoldesComptes() {
@@ -829,6 +893,9 @@ function renderDashSoldesComptes() {
       totalEl.style.cursor = 'not-allowed';
       totalEl.placeholder = 'Auto';
     } else {
+      // Mode global : charger depuis localStorage si disponible
+      const saved = getGlobalSolde();
+      if (saved !== null && totalEl.value === '') totalEl.value = saved.toFixed(2);
       totalEl.readOnly = false;
       totalEl.style.opacity = '';
       totalEl.style.cursor = '';
@@ -850,6 +917,98 @@ function refreshDashFiltreCompte() {
 
 function onFiltreCompteChange(doUpdate=true) {
   if (doUpdate) updateDashboard();
+}
+
+// ── TRANSACTIONS RAPIDES ──
+function appliquerDeltaQT(cp, delta) {
+  const modePerCompte = getSoldeTotalAuto() !== null || Object.keys(getSoldesComptes()).length > 0;
+  if (modePerCompte) {
+    const soldes = getSoldesComptes();
+    const base = soldes[cp] !== undefined ? soldes[cp] : 0;
+    setSoldeCompte(cp, base + delta);
+  } else {
+    const base = getGlobalSolde() || 0;
+    setGlobalSolde(base + delta);
+  }
+}
+
+function ouvrirQuickTx(idEdit) {
+  editingQtId = idEdit || null;
+  const qt = idEdit ? getQuickTransactions().find(q => q.id === idEdit) : null;
+  qtSignIsExpense = qt ? qt.montant < 0 : true;
+  renderQtSignBtn();
+  document.getElementById('qt-desc').value = qt ? qt.desc : '';
+  document.getElementById('qt-montant').value = qt ? Math.abs(qt.montant).toFixed(2) : '';
+  const sel = document.getElementById('qt-compte');
+  const comptes = getComptes();
+  sel.innerHTML = comptes.map(cp => `<option value="${escapeHtml(cp)}">${escapeHtml(cp)}</option>`).join('');
+  if (qt && qt.compte) sel.value = qt.compte;
+  document.getElementById('qt-modal-title').textContent = idEdit ? '⚡ Modifier' : '⚡ Transaction rapide';
+  document.getElementById('qt-delete-btn').style.display = idEdit ? 'inline-flex' : 'none';
+  document.getElementById('modal-quick-tx').classList.add('open');
+  setTimeout(() => document.getElementById('qt-desc')?.focus(), 50);
+}
+
+function fermerQuickTx() {
+  document.getElementById('modal-quick-tx').classList.remove('open');
+  editingQtId = null;
+}
+
+function fermerQuickTxSiOverlay(e) {
+  if (e.target === document.getElementById('modal-quick-tx')) fermerQuickTx();
+}
+
+function toggleQtSign() { qtSignIsExpense = !qtSignIsExpense; renderQtSignBtn(); }
+
+function renderQtSignBtn() {
+  const btn = document.getElementById('qt-sign-btn');
+  if (!btn) return;
+  if (qtSignIsExpense) {
+    btn.textContent = '− Dépense';
+    btn.style.background = 'rgba(226,75,74,0.1)'; btn.style.color = 'var(--red)';
+  } else {
+    btn.textContent = '+ Revenu';
+    btn.style.background = 'rgba(29,158,117,0.1)'; btn.style.color = 'var(--green)';
+  }
+}
+
+function confirmerQuickTx() {
+  const desc = document.getElementById('qt-desc').value.trim();
+  const raw = parseFloat(document.getElementById('qt-montant').value);
+  const compte = document.getElementById('qt-compte').value;
+  if (!desc) { showToast('La description est requise.', 'error'); return; }
+  if (isNaN(raw) || raw <= 0) { showToast('Montant invalide.', 'error'); return; }
+  if (!compte) { showToast('Le compte est requis.', 'error'); return; }
+  const montant = qtSignIsExpense ? -raw : raw;
+  const cat = qtSignIsExpense ? 'Dépense spontanée' : 'Revenu spontané';
+  const list = getQuickTransactions();
+  const oldQt = editingQtId ? list.find(q => q.id === editingQtId) : null;
+  if (editingQtId) {
+    const idx = list.findIndex(q => q.id === editingQtId);
+    if (idx !== -1) list[idx] = { ...list[idx], desc, montant, compte, cat };
+  } else {
+    list.push({ id: crypto.randomUUID(), date: today(), desc, montant, compte, cat });
+  }
+  saveQuickTransactions(list);
+  // Reverser l'ancien effet si édition
+  if (oldQt) appliquerDeltaQT(oldQt.compte, -oldQt.montant);
+  // Appliquer le nouvel effet
+  appliquerDeltaQT(compte, montant);
+  fermerQuickTx();
+  renderDashSoldesComptes();
+  updateDashboard();
+  showToast(editingQtId ? 'Transaction modifiée' : 'Transaction rapide ajoutée', 'success');
+}
+
+function supprimerQuickTx() {
+  if (!editingQtId) return;
+  const qt = getQuickTransactions().find(q => q.id === editingQtId);
+  if (qt) appliquerDeltaQT(qt.compte, -qt.montant);
+  saveQuickTransactions(getQuickTransactions().filter(q => q.id !== editingQtId));
+  fermerQuickTx();
+  renderDashSoldesComptes();
+  updateDashboard();
+  showToast('Transaction rapide supprimée', 'info');
 }
 
 function dashDatePlusUnMois() {
@@ -1858,11 +2017,18 @@ function updateDashboard() {
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
   depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
   revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
-  // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
+  // Injection QT — toujours aujourd'hui, quel que soit startDate
+  const qtToday = getQuickTransactions().filter(q => {
+    if (q.date !== t) return false;
+    return !isFiltreCompte || q.compte === filtreCompte;
+  });
+  qtToday.forEach(q => all.push({ date: q.date, desc: q.desc, montant: q.montant, freq: '', type: 'qt', id: q.id }));
+  // Trier : par date, puis revenus avant dépenses, QT en dernier dans la journée
   all.sort((a,b)=>{
     const dateCmp = a.date.localeCompare(b.date);
     if (dateCmp !== 0) return dateCmp;
-    // Même date : revenus (montant >= 0) avant dépenses
+    if (a.type === 'qt' && b.type !== 'qt') return 1;
+    if (a.type !== 'qt' && b.type === 'qt') return -1;
     if (a.montant >= 0 && b.montant < 0) return -1;
     if (a.montant < 0 && b.montant >= 0) return 1;
     return 0;
@@ -1909,6 +2075,18 @@ function updateDashboard() {
       ? `<span style="text-align:right;font-weight:500;color:${soldeCourant>=0?'var(--green)':'var(--red)'};">$${soldeCourant.toFixed(2)}</span>`
       : '';
     const grid = hasSolde ? 'grid-template-columns:minmax(0,1fr) 100px 110px' : 'grid-template-columns:minmax(0,1fr) 100px';
+
+    if (o.type === 'qt') {
+      return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;background:rgba(239,159,39,0.06);border-left:3px solid var(--amber);">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;color:var(--amber);flex-shrink:0;">⚡</span>
+          <span class="qt-desc" data-id="${escapeHtml(o.id)}" onclick="ouvrirQuickTx(this.dataset.id)">${escapeHtml(o.desc)}</span>
+        </span>
+        ${montantStr}
+        ${soldeStr}
+      </div>`;
+    }
+
     return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
