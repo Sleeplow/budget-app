@@ -761,9 +761,9 @@ function setSoldeCompte(compte, val) {
 function getSoldeTotalAuto() {
   const comptes = getComptes();
   const soldes = getSoldesComptes();
-  const vals = comptes.map(cp => soldes[cp]).filter(v => v !== undefined && !isNaN(v));
-  if (vals.length === 0) return null;
-  return vals.reduce((s, v) => s + v, 0);
+  const hasAnySolde = comptes.some(cp => soldes[cp] !== undefined && !isNaN(soldes[cp]));
+  if (!hasAnySolde) return null;
+  return comptes.reduce((s, cp) => s + (parseFloat(soldes[cp]) || 0), 0);
 }
 
 function onSoldeCompteInput(compte, val) {
@@ -1734,7 +1734,8 @@ function updateDashboard() {
   const isFiltreCompte = filtreCompte !== 'tous';
   const siGlobal = parseFloat(document.getElementById('solde-compte').value)||null;
   const soldesComptes = getSoldesComptes();
-  const siFiltre = isFiltreCompte ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : null) : null;
+  const anyHasSolde = getComptes().some(cp => soldesComptes[cp] !== undefined && !isNaN(soldesComptes[cp]));
+  const siFiltre = isFiltreCompte ? (anyHasSolde ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : 0) : null) : null;
   const si = isFiltreCompte ? siFiltre : siGlobal;
   const el=document.getElementById('m-solde');
   el.textContent=siGlobal!==null?'$'+siGlobal.toFixed(2):'—';
