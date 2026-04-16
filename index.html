@@ -486,11 +486,7 @@ window.dispatchEvent(new Event('fb-ready'));
 
     <div class="modal-section">
       <div class="modal-section-title">Format de date</div>
-      <select id="select-date-format" onchange="changerFormatDate(this.value)" style="width:100%;">
-        <option value="YYYY-MM-DD">YYYY-MM-DD — ex: 2026-03-17</option>
-        <option value="DD-MM-YYYY">DD-MM-YYYY — ex: 17-03-2026</option>
-        <option value="MM-DD-YYYY">MM-DD-YYYY — ex: 03-17-2026</option>
-      </select>
+      <select id="select-date-format" onchange="changerFormatDate(this.value)" style="width:100%;"></select>
     </div>
 
     <div class="modal-section">
@@ -1048,10 +1044,18 @@ function changerFormatDate(fmt) {
 function ouvrirParametres() {
   renderCatList();
   renderCompteList();
-  // Sélectionner le bon format de date
+  // Peupler le sélecteur de format avec la date du jour comme exemple
   const fmt = getDateFormat();
   const selFmt = document.getElementById('select-date-format');
-  if (selFmt) selFmt.value = fmt;
+  if (selFmt) {
+    const t = today();
+    const [y, m, d] = t.split('-');
+    selFmt.innerHTML = [
+      { value: 'YYYY-MM-DD', label: `YYYY-MM-DD — ex\u00a0: ${y}-${m}-${d}` },
+      { value: 'DD-MM-YYYY', label: `DD-MM-YYYY — ex\u00a0: ${d}-${m}-${y}` },
+      { value: 'MM-DD-YYYY', label: `MM-DD-YYYY — ex\u00a0: ${m}-${d}-${y}` },
+    ].map(o => `<option value="${o.value}"${o.value === fmt ? ' selected' : ''}>${o.label}</option>`).join('');
+  }
   try {
     const txt = document.getElementById('modal-sync-txt');
     const status = document.getElementById('sync-status');
