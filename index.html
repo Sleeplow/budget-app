@@ -25,7 +25,7 @@
       --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
     }
   }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; overscroll-behavior: contain; }
   #app { max-width: 860px; margin: 0 auto; padding: 0 1rem 3rem; }
   .app-top { position: sticky; top: 0; z-index: 10; background: var(--bg3); padding-top: 1.5rem; }
   .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
@@ -41,7 +41,7 @@
   .modal-section { margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 0.5px solid var(--border); }
   .modal-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
   .modal-section-title { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
-  .modal-hint { font-size: 11px; color: var(--text3); margin-bottom: 10px; line-height: 1.5; }
+  .modal-hint { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
   .danger-zone { background: rgba(226,75,74,0.06); border: 0.5px solid rgba(226,75,74,0.25); border-radius: var(--radius-sm); padding: 12px; }
   .danger-zone p { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
   .cat-list { list-style: none; margin-bottom: 10px; }
@@ -51,7 +51,7 @@
   .cat-item.locked { cursor: default; color: var(--text2); background: var(--bg3); }
   .cat-drag-handle { color: var(--text3); flex-shrink: 0; }
   .cat-name { flex: 1; }
-  .cat-delete { width: 24px; height: 24px; border: none; background: none; color: var(--text3); cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; }
+  .cat-delete { width: 36px; height: 36px; border: none; background: none; color: var(--text3); cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; }
   .cat-delete:hover { background: rgba(226,75,74,0.12); color: var(--red); }
   .cat-add-row { display: flex; gap: 8px; }
   .cat-add-row input { flex: 1; height: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13px; background: var(--bg); color: var(--text); }
@@ -78,12 +78,12 @@
   .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
   .btn-save { background: var(--green); color: #fff; border-color: var(--green); }
   .btn-cancel { background: none; color: var(--text2); border-color: var(--border); }
-  .btn-icon-sm { height: 34px; width: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg); color: var(--text2); display: inline-flex; align-items: center; justify-content: center; }
+  .btn-icon-sm { height: 36px; width: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg); color: var(--text2); display: inline-flex; align-items: center; justify-content: center; }
   .btn-icon-sm:hover { background: var(--bg2); }
-  .btn-avatar { height: 34px; width: 34px; border: 0.5px solid var(--border2); border-radius: 50%; cursor: pointer; background: var(--bg3); color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; font-size: 14px; font-weight: 600; }
+  .btn-avatar { height: 44px; width: 44px; border: 0.5px solid var(--border2); border-radius: 50%; cursor: pointer; background: var(--bg3); color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; font-size: 14px; font-weight: 600; }
   .btn-avatar:hover { opacity: 0.85; }
-  .btn-avatar img { width: 34px; height: 34px; object-fit: cover; }
-  .btn-row-icon { height: 28px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); }
+  .btn-avatar img { width: 44px; height: 44px; object-fit: cover; }
+  .btn-row-icon { height: 36px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); }
   .btn-row-icon.danger { color: var(--red); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text2); padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
@@ -102,7 +102,9 @@
   .solde-montant { font-weight: 500; min-width: 90px; text-align: right; }
   .section { display: none; } .section.active { display: block; }
   .empty-state { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
-  .freq-tag { font-size: 11px; color: var(--text3); }
+  .freq-tag { font-size: 11px; color: var(--text2); }
+  .qt-desc { cursor: pointer; color: var(--amber); }
+  .qt-desc:hover { text-decoration: underline; text-underline-offset: 2px; }
   .inline-edit { height: 30px; font-size: 13px; padding: 0 6px; min-width: 0; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
   .edit-actions { display: flex; gap: 6px; }
   .divider { width: 1px; height: 24px; background: var(--border); }
@@ -121,15 +123,15 @@
   .excel-info { background: rgba(24,95,165,0.07); border: 0.5px solid rgba(24,95,165,0.2); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.6; }
   .color-picker-popup { position:fixed; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius); padding:12px; z-index:300; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; }
   .color-picker-popup.open { display:block; }
-  .cp-label { font-size:11px; font-weight:500; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:7px; }
+  .cp-label { font-size:11px; font-weight:500; color:var(--text2); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:7px; }
   .cp-palette { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-  .cp-swatch { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform 0.1s; flex-shrink:0; box-sizing:border-box; }
+  .cp-swatch { width:32px; height:32px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform 0.1s; flex-shrink:0; box-sizing:border-box; }
   .cp-swatch:hover { transform:scale(1.15); }
   .cp-swatch.active { border-color:var(--text) !important; }
   .cp-custom-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .cp-add-btn { width:22px; height:22px; border-radius:50%; border:1.5px dashed var(--border2); background:none; color:var(--text2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; }
+  .cp-add-btn { width:32px; height:32px; border-radius:50%; border:1.5px dashed var(--border2); background:none; color:var(--text2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; }
   .cp-add-btn:hover { border-color:var(--text); color:var(--text); }
-  .cat-color-dot { width:18px; height:18px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
+  .cat-color-dot { width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
   .cat-color-dot:hover { transform:scale(1.2); border-color:var(--border2); }
   .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; }
   .entry-card.editing { background:var(--bg3); }
@@ -231,7 +233,7 @@ window.dispatchEvent(new Event('fb-ready'));
   <div class="app-top">
     <div class="app-header">
       <h1>Budget Personnel</h1>
-      <button class="btn-avatar" id="btn-user-avatar" onclick="ouvrirParametres()" title="Paramètres / compte">
+      <button class="btn-avatar" id="btn-user-avatar" onclick="ouvrirParametres()" title="Paramètres / compte" aria-label="Paramètres / compte">
         <img id="user-photo" src="" alt="" style="display:none;">
         <span id="user-initials">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -305,10 +307,24 @@ window.dispatchEvent(new Event('fb-ready'));
             <span style="font-size:13px;color:var(--text3);">$</span>
           </div>
           <div id="dash-soldes-comptes"></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);">
+            <button id="btn-auto-suivi" onclick="toggleAutoSuivi()" style="height:30px;padding:0 12px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--text2);">
+              <span id="auto-suivi-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;display:inline-block;"></span>
+              Suivi automatique
+            </button>
+            <div id="auto-suivi-info" style="font-size:12px;color:var(--text2);margin-top:5px;"></div>
+          </div>
         </div>
         <div style="min-width:180px;">
           <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">Date cible</div>
-          <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="max-width:180px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:8px;" title="Coché = aujourd'hui est déjà terminé, les transactions débutent demain">
+            <input type="checkbox" id="dash-aujourd-hui-termine" onchange="onAujourdHuiTermineChange()" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+            Aujourd'hui terminé
+          </label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="flex:1;min-width:0;width:auto;">
+            <button onclick="dashDatePlusUnMois()" style="height:36px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;flex-shrink:0;">+1 mois</button>
+          </div>
         </div>
       </div>
     </div>
@@ -326,7 +342,8 @@ window.dispatchEvent(new Event('fb-ready'));
         <div class="section-title" style="margin-bottom:0;">Prochaines transactions</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <select id="dash-filtre-compte" onchange="onFiltreCompteChange()" style="height:30px;font-size:12px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);"></select>
-          <span id="dash-date-label" style="font-size:12px;color:var(--text3);"></span>
+          <button onclick="ouvrirQuickTx()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--amber);border-radius:var(--radius-sm);background:rgba(239,159,39,0.1);color:var(--amber);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">⚡ Rapide</button>
+          <span id="dash-date-label" style="font-size:12px;color:var(--text2);"></span>
         </div>
       </div>
       <div id="prochaines-list"><div class="empty-state">Aucune transaction ajoutée</div></div>
@@ -370,7 +387,7 @@ window.dispatchEvent(new Event('fb-ready'));
           <option value="freq">Fréquence</option>
           <option value="compte">Compte</option>
         </select>
-        <button id="rev-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleRevSortDir()" title="Inverser le tri">↑</button>
+        <button id="rev-sort-dir" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="toggleRevSortDir()" title="Inverser le tri" aria-label="Inverser le tri">↑</button>
       </div>
       <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
     </div>
@@ -416,7 +433,7 @@ window.dispatchEvent(new Event('fb-ready'));
           <option value="cat">Catégorie</option>
           <option value="compte">Compte</option>
         </select>
-        <button id="dep-sort-dir" class="btn-icon-sm" style="height:30px;width:30px;flex:none;" onclick="toggleDepSortDir()" title="Inverser le tri">↑</button>
+        <button id="dep-sort-dir" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="toggleDepSortDir()" title="Inverser le tri" aria-label="Inverser le tri">↑</button>
       </div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
     </div>
@@ -428,7 +445,7 @@ window.dispatchEvent(new Event('fb-ready'));
 
   <div style="display:flex;align-items:center;gap:8px;padding:8px 0;margin-top:0.5rem;">
     <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;"></div>
-    <span id="sync-status" style="font-size:11px;color:var(--text3);">Connexion à Firebase...</span>
+    <span id="sync-status" style="font-size:12px;color:var(--text2);">Connexion à Firebase...</span>
   </div>
 </div>
 
@@ -515,6 +532,35 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-quick-tx" onclick="fermerQuickTxSiOverlay(event)">
+  <div class="modal" style="max-width:380px;">
+    <h2 id="qt-modal-title" style="font-size:16px;">⚡ Transaction rapide</h2>
+    <div class="form-group" style="margin-bottom:10px;">
+      <label>Description</label>
+      <input type="text" id="qt-desc" placeholder="Ex: Café, épicerie..." maxlength="80">
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;margin-bottom:10px;align-items:end;">
+      <div class="form-group">
+        <label>Type</label>
+        <button id="qt-sign-btn" onclick="toggleQtSign()" style="height:36px;padding:0 12px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;min-width:96px;background:rgba(226,75,74,0.1);color:var(--red);">− Dépense</button>
+      </div>
+      <div class="form-group">
+        <label>Montant ($)</label>
+        <input type="number" id="qt-montant" placeholder="0.00" step="0.01" min="0">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Compte <span style="color:var(--red);font-size:11px;">requis</span></label>
+      <select id="qt-compte"></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+      <button id="qt-delete-btn" class="btn btn-red" style="display:none;margin-right:auto;" onclick="supprimerQuickTx()">Supprimer</button>
+      <button class="btn btn-cancel" onclick="fermerQuickTx()">Annuler</button>
+      <button class="btn" style="background:var(--amber);color:#fff;border-color:var(--amber);" onclick="confirmerQuickTx()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
 <div id="custom-color-modal" class="modal-overlay" style="z-index:400;">
   <div class="modal" style="max-width:300px;width:100%;">
     <h2 style="font-size:15px;">Couleur personnalisée</h2>
@@ -561,6 +607,8 @@ let categoryColors = {};
 let compteColors = {};
 let customColors = [];
 let colorPickerTarget = null;
+let qtSignIsExpense = true;
+let editingQtId = null;
 
 // ── SÉCURITÉ ──
 function escapeHtml(str) {
@@ -720,6 +768,7 @@ function setSyncStatus(state, msg) {
 
 // ── CONFIG ──
 function demarrerApp() {
+  purgeOldQuickTransactions();
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display='block';
   const depDate = document.getElementById('dep-date');
@@ -732,12 +781,35 @@ function demarrerApp() {
   refreshCompteSelects();
   refreshDashFiltreCompte();
   renderDashSoldesComptes();
+  renderAutoSuiviToggle();
   chargerTout();
 }
 
 // ── MODAL ──
 // ── SOLDES PAR COMPTE ──
 const SOLDES_KEY = 'budget_soldes_comptes';
+const GLOBAL_SOLDE_KEY = 'budget_solde_global';
+const QUICK_TX_KEY = 'budget_quick_transactions';
+
+function getGlobalSolde() {
+  try { const v = localStorage.getItem(GLOBAL_SOLDE_KEY); return v !== null ? parseFloat(v) : null; } catch(e) { return null; }
+}
+function setGlobalSolde(val) {
+  if (val === null || isNaN(val)) localStorage.removeItem(GLOBAL_SOLDE_KEY);
+  else localStorage.setItem(GLOBAL_SOLDE_KEY, String(parseFloat(val)));
+}
+function getQuickTransactions() {
+  try { return JSON.parse(localStorage.getItem(QUICK_TX_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveQuickTransactions(list) {
+  localStorage.setItem(QUICK_TX_KEY, JSON.stringify(list));
+}
+function purgeOldQuickTransactions() {
+  const t = today();
+  const list = getQuickTransactions();
+  const kept = list.filter(q => q.date === t);
+  if (kept.length !== list.length) saveQuickTransactions(kept);
+}
 
 function getSoldesComptes() {
   try { return JSON.parse(localStorage.getItem(SOLDES_KEY) || '{}'); }
@@ -754,13 +826,15 @@ function setSoldeCompte(compte, val) {
 function getSoldeTotalAuto() {
   const comptes = getComptes();
   const soldes = getSoldesComptes();
-  const vals = comptes.map(cp => soldes[cp]).filter(v => v !== undefined && !isNaN(v));
-  if (vals.length === 0) return null;
-  return vals.reduce((s, v) => s + v, 0);
+  const hasAnySolde = comptes.some(cp => soldes[cp] !== undefined && !isNaN(soldes[cp]));
+  if (!hasAnySolde) return null;
+  return comptes.reduce((s, cp) => s + (parseFloat(soldes[cp]) || 0), 0);
 }
 
 function onSoldeCompteInput(compte, val) {
   setSoldeCompte(compte, val === '' ? null : val);
+  // Première entrée par compte → effacer le solde global persisté
+  if (getSoldeTotalAuto() !== null) setGlobalSolde(null);
   const total = getSoldeTotalAuto();
   const totalEl = document.getElementById('solde-compte');
   if (total !== null) {
@@ -779,7 +853,12 @@ function onSoldeCompteInput(compte, val) {
 
 function onSoldeTotalChange() {
   const total = getSoldeTotalAuto();
-  if (total === null) updateDashboard();
+  if (total === null) {
+    // Mode global : persister la valeur saisie
+    const val = parseFloat(document.getElementById('solde-compte').value);
+    setGlobalSolde(isNaN(val) ? null : val);
+    updateDashboard();
+  }
 }
 
 function renderDashSoldesComptes() {
@@ -814,6 +893,9 @@ function renderDashSoldesComptes() {
       totalEl.style.cursor = 'not-allowed';
       totalEl.placeholder = 'Auto';
     } else {
+      // Mode global : charger depuis localStorage si disponible
+      const saved = getGlobalSolde();
+      if (saved !== null && totalEl.value === '') totalEl.value = saved.toFixed(2);
       totalEl.readOnly = false;
       totalEl.style.opacity = '';
       totalEl.style.cursor = '';
@@ -835,6 +917,106 @@ function refreshDashFiltreCompte() {
 
 function onFiltreCompteChange(doUpdate=true) {
   if (doUpdate) updateDashboard();
+}
+
+// ── TRANSACTIONS RAPIDES ──
+function appliquerDeltaQT(cp, delta) {
+  const modePerCompte = getSoldeTotalAuto() !== null || Object.keys(getSoldesComptes()).length > 0;
+  if (modePerCompte) {
+    const soldes = getSoldesComptes();
+    const base = soldes[cp] !== undefined ? soldes[cp] : 0;
+    setSoldeCompte(cp, base + delta);
+  } else {
+    const base = getGlobalSolde() || 0;
+    setGlobalSolde(base + delta);
+  }
+}
+
+function ouvrirQuickTx(idEdit) {
+  editingQtId = idEdit || null;
+  const qt = idEdit ? getQuickTransactions().find(q => q.id === idEdit) : null;
+  qtSignIsExpense = qt ? qt.montant < 0 : true;
+  renderQtSignBtn();
+  document.getElementById('qt-desc').value = qt ? qt.desc : '';
+  document.getElementById('qt-montant').value = qt ? Math.abs(qt.montant).toFixed(2) : '';
+  const sel = document.getElementById('qt-compte');
+  const comptes = getComptes();
+  sel.innerHTML = comptes.map(cp => `<option value="${escapeHtml(cp)}">${escapeHtml(cp)}</option>`).join('');
+  if (qt && qt.compte) sel.value = qt.compte;
+  document.getElementById('qt-modal-title').textContent = idEdit ? '⚡ Modifier' : '⚡ Transaction rapide';
+  document.getElementById('qt-delete-btn').style.display = idEdit ? 'inline-flex' : 'none';
+  document.getElementById('modal-quick-tx').classList.add('open');
+  setTimeout(() => document.getElementById('qt-desc')?.focus(), 50);
+}
+
+function fermerQuickTx() {
+  document.getElementById('modal-quick-tx').classList.remove('open');
+  editingQtId = null;
+}
+
+function fermerQuickTxSiOverlay(e) {
+  if (e.target === document.getElementById('modal-quick-tx')) fermerQuickTx();
+}
+
+function toggleQtSign() { qtSignIsExpense = !qtSignIsExpense; renderQtSignBtn(); }
+
+function renderQtSignBtn() {
+  const btn = document.getElementById('qt-sign-btn');
+  if (!btn) return;
+  if (qtSignIsExpense) {
+    btn.textContent = '− Dépense';
+    btn.style.background = 'rgba(226,75,74,0.1)'; btn.style.color = 'var(--red)';
+  } else {
+    btn.textContent = '+ Revenu';
+    btn.style.background = 'rgba(29,158,117,0.1)'; btn.style.color = 'var(--green)';
+  }
+}
+
+function confirmerQuickTx() {
+  const desc = document.getElementById('qt-desc').value.trim();
+  const raw = parseFloat(document.getElementById('qt-montant').value);
+  const compte = document.getElementById('qt-compte').value;
+  if (!desc) { showToast('La description est requise.', 'error'); return; }
+  if (isNaN(raw) || raw <= 0) { showToast('Montant invalide.', 'error'); return; }
+  if (!compte) { showToast('Le compte est requis.', 'error'); return; }
+  const montant = qtSignIsExpense ? -raw : raw;
+  const cat = qtSignIsExpense ? 'Dépense spontanée' : 'Revenu spontané';
+  const list = getQuickTransactions();
+  const oldQt = editingQtId ? list.find(q => q.id === editingQtId) : null;
+  if (editingQtId) {
+    const idx = list.findIndex(q => q.id === editingQtId);
+    if (idx !== -1) list[idx] = { ...list[idx], desc, montant, compte, cat };
+  } else {
+    list.push({ id: crypto.randomUUID(), date: today(), desc, montant, compte, cat });
+  }
+  saveQuickTransactions(list);
+  // Reverser l'ancien effet si édition
+  if (oldQt) appliquerDeltaQT(oldQt.compte, -oldQt.montant);
+  // Appliquer le nouvel effet
+  appliquerDeltaQT(compte, montant);
+  fermerQuickTx();
+  renderDashSoldesComptes();
+  updateDashboard();
+  showToast(editingQtId ? 'Transaction modifiée' : 'Transaction rapide ajoutée', 'success');
+}
+
+function supprimerQuickTx() {
+  if (!editingQtId) return;
+  const qt = getQuickTransactions().find(q => q.id === editingQtId);
+  if (qt) appliquerDeltaQT(qt.compte, -qt.montant);
+  saveQuickTransactions(getQuickTransactions().filter(q => q.id !== editingQtId));
+  fermerQuickTx();
+  renderDashSoldesComptes();
+  updateDashboard();
+  showToast('Transaction rapide supprimée', 'info');
+}
+
+function dashDatePlusUnMois() {
+  const el = document.getElementById('dash-date-cible');
+  if (!el) return;
+  const val = el.value || addDaysStr(today(), 30);
+  el.value = addMonths(new Date(val + 'T00:00:00'), 1).toISOString().slice(0, 10);
+  updateDashboard();
 }
 
 function changerFormatDate(fmt) {
@@ -1004,8 +1186,8 @@ function renderCatList() {
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${escapeHtml(cat)}</span>
       <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" data-type="cat" data-name="${escapeHtml(cat)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
-      <button class="cat-delete" title="Modifier" onclick="startEditCat(${i})">${SVG_EDIT}</button>
-      <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
+      <button class="cat-delete" title="Modifier" aria-label="Modifier ${escapeHtml(cat)}" onclick="startEditCat(${i})">${SVG_EDIT}</button>
+      <button class="cat-delete" style="color:var(--red);" title="Supprimer" aria-label="Supprimer ${escapeHtml(cat)}" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
     </li>`;
   }).join('');
 }
@@ -1092,8 +1274,8 @@ function renderCompteList() {
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${escapeHtml(compte)}</span>
       <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" data-type="compte" data-name="${escapeHtml(compte)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
-      <button class="cat-delete" title="Modifier" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
-      <button class="cat-delete" style="color:var(--red);" title="Supprimer" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
+      <button class="cat-delete" title="Modifier" aria-label="Modifier ${escapeHtml(compte)}" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
+      <button class="cat-delete" style="color:var(--red);" title="Supprimer" aria-label="Supprimer ${escapeHtml(compte)}" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
     </li>`;
   }).join('');
 }
@@ -1213,7 +1395,8 @@ async function chargerTout(showMsg=false) {
     // Revenus
     revenus = Array.isArray(data.revenus) ? data.revenus.map(mapRev) : [];
     setSyncStatus('ok', `Synchronisé — ${depenses.length} dépense(s), ${revenus.length} revenu(s)`);
-    renderDepenses(); renderRevenus(); updateDashboard(); updateAnalytics();
+    runAutoSuivi();
+    renderDepenses(); renderRevenus(); renderDashSoldesComptes(); updateDashboard(); updateAnalytics();
     if(showMsg) showToast('Données synchronisées !');
   } catch(e) {
     console.error('chargerTout erreur:', e);
@@ -1278,8 +1461,14 @@ async function syncNow() { await chargerTout(true); }
 
 // ── NAVIGATION ──
 const TABS = ['tableau-bord', 'transactions', 'revenus', 'depenses'];
+const tabScrollPos = {}; // mémorise la position de scroll par onglet
 
-function showTab(id, btn) {
+function showTab(id, btn, skipScroll = false) {
+  if (!skipScroll) {
+    // Sauvegarder la position de l'onglet actuel avant de quitter
+    const curId = TABS.find(t => document.getElementById('tab-'+t)?.classList.contains('active'));
+    if (curId) tabScrollPos[curId] = window.scrollY;
+  }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
@@ -1289,6 +1478,7 @@ function showTab(id, btn) {
   if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
   if (id==='revenus') { editingRevId=null; renderRevenus(); }
+  if (!skipScroll) window.scrollTo(0, tabScrollPos[id] || 0);
 }
 
 // ── REVENUS CRUD ──
@@ -1389,8 +1579,8 @@ function renderRevenus() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(r.desc)}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" data-id="${escapeHtml(r.id)}" onclick="startEditRev(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" data-id="${escapeHtml(r.id)}" onclick="supprimerRevenu(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+        <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;" title="Modifier" aria-label="Modifier" data-id="${escapeHtml(r.id)}" onclick="startEditRev(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;color:var(--red);" title="Supprimer" aria-label="Supprimer" data-id="${escapeHtml(r.id)}" onclick="supprimerRevenu(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--green);">+$${r.montant.toFixed(2)}</span>
@@ -1486,8 +1676,8 @@ function renderDepenses() {
     return `<div class="entry-card">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(d.desc)}</span>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;" title="Modifier" data-id="${escapeHtml(d.id)}" onclick="startEdit(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="btn-icon-sm" style="height:26px;width:26px;flex:none;color:var(--red);" title="Supprimer" data-id="${escapeHtml(d.id)}" onclick="supprimerDepense(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
+        <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;" title="Modifier" aria-label="Modifier" data-id="${escapeHtml(d.id)}" onclick="startEdit(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;color:var(--red);" title="Supprimer" aria-label="Supprimer" data-id="${escapeHtml(d.id)}" onclick="supprimerDepense(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><line x1="21" y1="3" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg></button>
       </div>
       <div class="entry-card-row">
         <span style="font-weight:500;color:var(--red);">-$${d.montant.toFixed(2)}</span>
@@ -1688,6 +1878,93 @@ function annulerImport() {
   showToast('Import annulé','info');
 }
 
+// ── SUIVI AUTOMATIQUE ──
+const AUTO_SUIVI_KEY = 'budget_auto_suivi';
+const AUTO_SUIVI_DATE_KEY = 'budget_auto_suivi_date';
+
+function isAutoSuiviEnabled() {
+  return localStorage.getItem(AUTO_SUIVI_KEY) === '1';
+}
+
+function getAutoSuiviStartDate() {
+  const el = document.getElementById('dash-aujourd-hui-termine');
+  return (el && el.checked) ? addDaysStr(today(), 1) : today();
+}
+
+function toggleAutoSuivi() {
+  const enabled = !isAutoSuiviEnabled();
+  localStorage.setItem(AUTO_SUIVI_KEY, enabled ? '1' : '0');
+  if (enabled) {
+    localStorage.setItem(AUTO_SUIVI_DATE_KEY, getAutoSuiviStartDate());
+    showToast('Suivi automatique activé', 'success');
+  } else {
+    showToast('Suivi automatique désactivé', 'info');
+  }
+  renderAutoSuiviToggle();
+}
+
+function runAutoSuivi() {
+  if (!isAutoSuiviEnabled() || !currentUser) return;
+  const lastDate = localStorage.getItem(AUTO_SUIVI_DATE_KEY);
+  const startDate = getAutoSuiviStartDate();
+  if (!lastDate) { localStorage.setItem(AUTO_SUIVI_DATE_KEY, startDate); return; }
+  if (startDate <= lastDate) return;
+
+  const fromDate = lastDate;
+  const toDate = addDaysStr(startDate, -1);
+  const soldesComptes = getSoldesComptes();
+  const comptes = getComptes();
+  let totalDelta = 0;
+  let changed = false;
+
+  comptes.forEach(cp => {
+    if (soldesComptes[cp] === undefined) return;
+    let delta = 0;
+    revenus.filter(r => r.compte === cp).forEach(r => {
+      getOccurrences(r, fromDate, toDate).forEach(() => { delta += r.montant; });
+    });
+    depenses.filter(d => d.compte === cp).forEach(d => {
+      getOccurrences(d, fromDate, toDate).forEach(() => { delta -= d.montant; });
+    });
+    if (delta !== 0) {
+      setSoldeCompte(cp, soldesComptes[cp] + delta);
+      totalDelta += delta;
+      changed = true;
+    }
+  });
+
+  localStorage.setItem(AUTO_SUIVI_DATE_KEY, startDate);
+
+  if (changed) {
+    const jours = Math.round((new Date(startDate+'T00:00:00') - new Date(fromDate+'T00:00:00')) / 86400000);
+    const signe = totalDelta >= 0 ? '+' : '';
+    showToast(`Soldes mis à jour (${jours} jour${jours > 1 ? 's' : ''} · ${signe}$${Math.abs(totalDelta).toFixed(2)})`, 'info');
+  }
+
+  renderAutoSuiviToggle();
+}
+
+function renderAutoSuiviToggle() {
+  const dot = document.getElementById('auto-suivi-dot');
+  const btn = document.getElementById('btn-auto-suivi');
+  const info = document.getElementById('auto-suivi-info');
+  if (!dot || !btn) return;
+  const enabled = isAutoSuiviEnabled();
+  dot.style.background = enabled ? 'var(--green)' : 'var(--text3)';
+  btn.style.color = enabled ? 'var(--green)' : 'var(--text2)';
+  btn.style.borderColor = enabled ? 'var(--green)' : 'var(--border2)';
+  if (info) {
+    const lastDate = localStorage.getItem(AUTO_SUIVI_DATE_KEY);
+    info.textContent = enabled && lastDate ? `Actif · suivi depuis le ${formatDate(lastDate)}` : '';
+  }
+}
+
+function onAujourdHuiTermineChange() {
+  runAutoSuivi();
+  renderDashSoldesComptes();
+  updateDashboard();
+}
+
 // ── CALCULS ──
 function getOccurrences(item,from,to) {
   const fromDate=new Date(from+'T00:00:00'),toDate=new Date(to+'T00:00:00');
@@ -1712,7 +1989,8 @@ function updateDashboard() {
   const isFiltreCompte = filtreCompte !== 'tous';
   const siGlobal = parseFloat(document.getElementById('solde-compte').value)||null;
   const soldesComptes = getSoldesComptes();
-  const siFiltre = isFiltreCompte ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : null) : null;
+  const anyHasSolde = siGlobal !== null || getComptes().some(cp => soldesComptes[cp] !== undefined && !isNaN(soldesComptes[cp]));
+  const siFiltre = isFiltreCompte ? (anyHasSolde ? (soldesComptes[filtreCompte] !== undefined ? soldesComptes[filtreCompte] : 0) : null) : null;
   const si = isFiltreCompte ? siFiltre : siGlobal;
   const el=document.getElementById('m-solde');
   el.textContent=siGlobal!==null?'$'+siGlobal.toFixed(2):'—';
@@ -1723,9 +2001,11 @@ function updateDashboard() {
   // Utiliser la date cible du champ dashboard
   const dateCibleEl = document.getElementById('dash-date-cible');
   const end30 = dateCibleEl && dateCibleEl.value ? dateCibleEl.value : addDaysStr(t,30);
+  const aujourdHuiTermineEl = document.getElementById('dash-aujourd-hui-termine');
+  const startDate = (aujourdHuiTermineEl && aujourdHuiTermineEl.checked) ? addDaysStr(t,1) : t;
   let tm=0,t30=0,rm=0,r30=0;
-  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,t,end30).forEach(()=>t30+=d.montant);});
-  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,t,end30).forEach(()=>r30+=r.montant);});
+  depenses.forEach(d=>{getOccurrences(d,firstDay,lastDay).forEach(()=>tm+=d.montant);getOccurrences(d,startDate,end30).forEach(()=>t30+=d.montant);});
+  revenus.forEach(r=>{getOccurrences(r,firstDay,lastDay).forEach(()=>rm+=r.montant);getOccurrences(r,startDate,end30).forEach(()=>r30+=r.montant);});
   document.getElementById('m-mois').textContent='-$'+tm.toFixed(2);
   document.getElementById('m-30j').textContent='-$'+t30.toFixed(2);
   document.getElementById('m-rev-mois').textContent='+$'+rm.toFixed(2);
@@ -1735,13 +2015,20 @@ function updateDashboard() {
   let all=[];
   const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
-  depFiltre.forEach(d=>getOccurrences(d,t,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revFiltre.forEach(r=>getOccurrences(r,t,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
-  // Trier : par date d'abord, puis revenus avant dépenses dans la même journée
+  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
+  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  // Injection QT — toujours aujourd'hui, quel que soit startDate
+  const qtToday = getQuickTransactions().filter(q => {
+    if (q.date !== t) return false;
+    return !isFiltreCompte || q.compte === filtreCompte;
+  });
+  qtToday.forEach(q => all.push({ date: q.date, desc: q.desc, montant: q.montant, freq: '', type: 'qt', id: q.id }));
+  // Trier : par date, puis revenus avant dépenses, QT en dernier dans la journée
   all.sort((a,b)=>{
     const dateCmp = a.date.localeCompare(b.date);
     if (dateCmp !== 0) return dateCmp;
-    // Même date : revenus (montant >= 0) avant dépenses
+    if (a.type === 'qt' && b.type !== 'qt') return 1;
+    if (a.type !== 'qt' && b.type === 'qt') return -1;
     if (a.montant >= 0 && b.montant < 0) return -1;
     if (a.montant < 0 && b.montant >= 0) return 1;
     return 0;
@@ -1788,6 +2075,18 @@ function updateDashboard() {
       ? `<span style="text-align:right;font-weight:500;color:${soldeCourant>=0?'var(--green)':'var(--red)'};">$${soldeCourant.toFixed(2)}</span>`
       : '';
     const grid = hasSolde ? 'grid-template-columns:minmax(0,1fr) 100px 110px' : 'grid-template-columns:minmax(0,1fr) 100px';
+
+    if (o.type === 'qt') {
+      return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;background:rgba(239,159,39,0.06);border-left:3px solid var(--amber);">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;color:var(--amber);flex-shrink:0;">⚡</span>
+          <span class="qt-desc" data-id="${escapeHtml(o.id)}" onclick="ouvrirQuickTx(this.dataset.id)">${escapeHtml(o.desc)}</span>
+        </span>
+        ${montantStr}
+        ${soldeStr}
+      </div>`;
+    }
+
     return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
@@ -2075,7 +2374,7 @@ function setupAuth() {
   let startX = 0, startY = 0, startTime = 0;
   let dragging = false, horizontal = null, transitioning = false;
   let curEl = null, adjEl = null, startOffset = 0, adjTabIdx = -1;
-  let transTimer = null;
+  let transTimer = null, savedScrollY = 0;
 
   function getActiveIdx() {
     return TABS.findIndex(id => document.getElementById('tab-' + id)?.classList.contains('active'));
@@ -2100,17 +2399,28 @@ function setupAuth() {
     curEl = document.getElementById('tab-' + TABS[curIdx]);
     adjEl = document.getElementById('tab-' + TABS[nextIdx]);
 
+    // Capture state BEFORE going fixed
+    savedScrollY = window.scrollY;
+    tabScrollPos[TABS[curIdx]] = savedScrollY; // mémoriser la position de l'onglet actuel
+    const curTopBefore = curEl.getBoundingClientRect().top;
+    const neededScrollTop = Math.max(0, top - curTopBefore);
+
     const base = `position:fixed;left:${Math.round(left)}px;width:${Math.round(width)}px;top:${top}px;bottom:0;overflow-y:auto;z-index:20;background:var(--bg3);padding:0 1rem 3rem;box-sizing:border-box;transition:none;will-change:transform;`;
     curEl.style.cssText = base + 'display:block;transform:translateX(0);';
     adjEl.style.cssText = base + `display:block;transform:translateX(${startOffset}px);`;
+
+    // Restaurer les positions de scroll: curEl où on était, adjEl où il se souvient
+    curEl.scrollTop = neededScrollTop;
+    adjEl.scrollTop = tabScrollPos[TABS[nextIdx]] || 0;
 
     dragging = true;
     return true;
   }
 
-  function cleanup() {
+  function cleanup(restoreScroll = false) {
     if (curEl) { curEl.style.cssText = ''; curEl = null; }
     if (adjEl) { adjEl.style.cssText = ''; adjEl = null; }
+    if (restoreScroll) window.scrollTo(0, savedScrollY);
   }
 
   function finishDrag(dx, dt) {
@@ -2129,8 +2439,9 @@ function setupAuth() {
       transitioning = true;
       const savedIdx = adjTabIdx;
       transTimer = setTimeout(() => {
-        cleanup();
-        showTab(TABS[savedIdx]);
+        cleanup(false);
+        window.scrollTo(0, tabScrollPos[TABS[savedIdx]] || 0);
+        showTab(TABS[savedIdx], null, true); // skipScroll: déjà géré ci-dessus
         transitioning = false;
         transTimer = null;
       }, dur + 20);
@@ -2141,7 +2452,7 @@ function setupAuth() {
       adjEl.style.transform = `translateX(${startOffset}px)`;
       transitioning = true;
       transTimer = setTimeout(() => {
-        cleanup();
+        cleanup(true); // snap-back: restaurer la position de scroll
         transitioning = false;
         transTimer = null;
       }, dur + 20);
@@ -2181,7 +2492,7 @@ function setupAuth() {
   }, { passive: true });
 
   document.addEventListener('touchcancel', () => {
-    if (dragging) { dragging = false; cleanup(); }
+    if (dragging) { dragging = false; cleanup(true); }
     horizontal = null;
   }, { passive: true });
 })();
