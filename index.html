@@ -23,9 +23,10 @@
       --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
       --text: #f2f2f7; --text2: #aeaeb2; --text3: #636366;
       --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
+      color-scheme: dark;
     }
   }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; overscroll-behavior: contain; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; overscroll-behavior: contain; line-height: 1.5; }
   #app { max-width: 860px; margin: 0 auto; padding: 0 1rem 3rem; }
   .app-top { position: sticky; top: 0; z-index: 10; background: var(--bg3); padding-top: 1.5rem; }
   .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
@@ -58,7 +59,8 @@
   .compte-badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(127,119,221,0.15); color: #534AB7; display: inline-block; }
   @media (prefers-color-scheme: dark) { .compte-badge { color: #AFA9EC; } }
   .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); }
-  .tab { padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab { padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, background-color 0.15s; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .tab:hover:not(.active) { color: var(--text); background: var(--bg2); }
   .tab.active { color: var(--text); border-bottom: 2px solid var(--text); font-weight: 500; }
   .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
   .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 1rem; }
@@ -70,8 +72,10 @@
   .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
   .form-group { display: flex; flex-direction: column; gap: 4px; }
   label { font-size: 12px; color: var(--text2); }
-  input[type=text], input[type=number], input[type=date], select { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 10px; font-size: 14px; background: var(--bg); color: var(--text); width: 100%; }
-  .btn { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 16px; font-size: 14px; cursor: pointer; background: var(--bg); color: var(--text); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  input[type=text], input[type=number], input[type=date], select { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 10px; font-size: 14px; background: var(--bg); color: var(--text); width: 100%; transition: border-color 0.15s, box-shadow 0.15s; }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.15); }
+  .btn { height: 36px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 0 16px; font-size: 14px; cursor: pointer; background: var(--bg); color: var(--text); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: opacity 0.15s; }
+  .btn:hover:not(:disabled) { opacity: 0.82; }
   .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
   .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
   .btn-blue { background: var(--blue); color: #fff; border-color: var(--blue); }
@@ -83,7 +87,8 @@
   .btn-avatar { height: 44px; width: 44px; border: 0.5px solid var(--border2); border-radius: 50%; cursor: pointer; background: var(--bg3); color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; font-size: 14px; font-weight: 600; }
   .btn-avatar:hover { opacity: 0.85; }
   .btn-avatar img { width: 44px; height: 44px; object-fit: cover; }
-  .btn-row-icon { height: 36px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); }
+  .btn-row-icon { height: 36px; padding: 0 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; color: var(--text2); transition: background-color 0.15s; }
+  .btn-row-icon:hover { background: var(--bg2); }
   .btn-row-icon.danger { color: var(--red); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text2); padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
@@ -114,6 +119,12 @@
   .sync-dot.error { background: var(--red); }
   .sync-dot.loading { background: var(--amber); animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
+  button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  input:focus-visible, select:focus-visible { outline: none; }
   .toast { position: fixed; bottom: 24px; right: 24px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 320px; }
   .toast.show { opacity: 1; }
   .toast.success { background: var(--green); color: #fff; }
@@ -133,7 +144,8 @@
   .cp-add-btn:hover { border-color:var(--text); color:var(--text); }
   .cat-color-dot { width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
   .cat-color-dot:hover { transform:scale(1.2); border-color:var(--border2); }
-  .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; }
+  .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; transition: background-color 0.15s; }
+  .entry-card:not(.editing):hover { background:var(--bg3); }
   .entry-card.editing { background:var(--bg3); }
   .entry-card-desc { font-size:13px; font-weight:500; margin-bottom:6px; word-break:break-word; }
   .entry-card-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; font-size:13px; }
@@ -241,16 +253,16 @@ window.dispatchEvent(new Event('fb-ready'));
       </button>
     </div>
 
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
-      <button class="tab" onclick="showTab('transactions', this)">Transactions</button>
-      <button class="tab" onclick="showTab('revenus', this)">Revenus</button>
-      <button class="tab" onclick="showTab('depenses', this)">Dépenses</button>
+    <div class="tabs" role="tablist" aria-label="Navigation principale">
+      <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-tableau-bord" id="btn-tab-tableau-bord" onclick="showTab('tableau-bord', this)">Tableau de bord</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-transactions" id="btn-tab-transactions" onclick="showTab('transactions', this)">Transactions</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-revenus" id="btn-tab-revenus" onclick="showTab('revenus', this)">Revenus</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-depenses" id="btn-tab-depenses" onclick="showTab('depenses', this)">Dépenses</button>
     </div>
   </div>
 
   <!-- ANALYTIQUE (tableau de bord) -->
-  <div id="tab-tableau-bord" class="section active">
+  <div id="tab-tableau-bord" class="section active" role="tabpanel" aria-labelledby="btn-tab-tableau-bord" tabindex="0">
     <div class="metrics-grid" style="margin-bottom:1rem;">
       <div class="metric">
         <div class="metric-label">Flux net / mois</div>
@@ -295,7 +307,7 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 
   <!-- TRANSACTIONS -->
-  <div id="tab-transactions" class="section">
+  <div id="tab-transactions" class="section" role="tabpanel" aria-labelledby="btn-tab-transactions" tabindex="0">
     <div class="card" style="margin-bottom:1rem;">
       <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:flex-start;">
         <div style="flex:1;min-width:220px;">
@@ -323,7 +335,7 @@ window.dispatchEvent(new Event('fb-ready'));
           </label>
           <div style="display:flex;align-items:center;gap:6px;">
             <input type="date" id="dash-date-cible" oninput="updateDashboard()" style="flex:1;min-width:0;width:auto;">
-            <button onclick="dashDatePlusUnMois()" style="height:36px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;flex-shrink:0;">+1 mois</button>
+            <button onclick="dashDatePlusUnMois()" aria-label="Avancer la date cible d'un mois" style="height:36px;padding:0 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);cursor:pointer;white-space:nowrap;flex-shrink:0;">+1 mois</button>
           </div>
         </div>
       </div>
@@ -342,7 +354,7 @@ window.dispatchEvent(new Event('fb-ready'));
         <div class="section-title" style="margin-bottom:0;">Prochaines transactions</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <select id="dash-filtre-compte" onchange="onFiltreCompteChange()" style="height:30px;font-size:12px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);"></select>
-          <button onclick="ouvrirQuickTx()" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--amber);border-radius:var(--radius-sm);background:rgba(239,159,39,0.1);color:var(--amber);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">⚡ Rapide</button>
+          <button onclick="ouvrirQuickTx()" aria-label="Ajouter une transaction rapide" style="height:30px;padding:0 10px;font-size:12px;border:0.5px solid var(--amber);border-radius:var(--radius-sm);background:rgba(239,159,39,0.1);color:var(--amber);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"><span aria-hidden="true">⚡</span> Rapide</button>
           <span id="dash-date-label" style="font-size:12px;color:var(--text2);"></span>
         </div>
       </div>
@@ -352,16 +364,16 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 
   <!-- REVENUS -->
-  <div id="tab-revenus" class="section">
+  <div id="tab-revenus" class="section" role="tabpanel" aria-labelledby="btn-tab-revenus" tabindex="0">
     <div class="card">
       <div class="section-title">Ajouter un revenu</div>
       <div class="form-row">
-        <div class="form-group"><label>Description</label><input type="text" id="rev-desc" placeholder="Ex: Salaire, Freelance..."></div>
-        <div class="form-group"><label>Montant ($)</label><input type="number" id="rev-montant" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group"><label for="rev-desc">Description</label><input type="text" id="rev-desc" placeholder="Ex: Salaire, Freelance..."></div>
+        <div class="form-group"><label for="rev-montant">Montant ($)</label><input type="number" id="rev-montant" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="rev-date"></div>
-        <div class="form-group"><label>Fréquence</label>
+        <div class="form-group"><label for="rev-date">Date de début / Prochaine date</label><input type="date" id="rev-date"></div>
+        <div class="form-group"><label for="rev-freq">Fréquence</label>
           <select id="rev-freq">
             <option value="unique">Unique</option>
             <option value="hebdo">Hebdomadaire</option>
@@ -372,13 +384,13 @@ window.dispatchEvent(new Event('fb-ready'));
             <option value="annuel">Annuel</option>
           </select>
         </div>
-        <div class="form-group"><label>Compte</label><select id="rev-compte"></select></div>
+        <div class="form-group"><label for="rev-compte">Compte</label><select id="rev-compte"></select></div>
       </div>
       <button class="btn btn-green" onclick="ajouterRevenu()">+ Ajouter</button>
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes revenus (<span id="rev-count">0</span>)</div>
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes revenus (<span id="rev-count" aria-live="polite" aria-atomic="true">0</span>)</div>
         <div style="flex:1;"></div>
         <select id="rev-sort-field" onchange="onRevSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
           <option value="date">Date</option>
@@ -394,16 +406,16 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 
   <!-- DÉPENSES -->
-  <div id="tab-depenses" class="section">
+  <div id="tab-depenses" class="section" role="tabpanel" aria-labelledby="btn-tab-depenses" tabindex="0">
     <div class="card">
       <div class="section-title">Ajouter une dépense</div>
       <div class="form-row">
-        <div class="form-group"><label>Description</label><input type="text" id="dep-desc" placeholder="Ex: Loyer, Netflix..."></div>
-        <div class="form-group"><label>Montant ($)</label><input type="number" id="dep-montant" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group"><label for="dep-desc">Description</label><input type="text" id="dep-desc" placeholder="Ex: Loyer, Netflix..."></div>
+        <div class="form-group"><label for="dep-montant">Montant ($)</label><input type="number" id="dep-montant" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Date de début / Prochaine date</label><input type="date" id="dep-date"></div>
-        <div class="form-group"><label>Fréquence</label>
+        <div class="form-group"><label for="dep-date">Date de début / Prochaine date</label><input type="date" id="dep-date"></div>
+        <div class="form-group"><label for="dep-freq">Fréquence</label>
           <select id="dep-freq">
             <option value="unique">Unique</option>
             <option value="hebdo">Hebdomadaire</option>
@@ -416,14 +428,14 @@ window.dispatchEvent(new Event('fb-ready'));
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Catégorie</label><select id="dep-cat"></select></div>
-        <div class="form-group"><label>Compte</label><select id="dep-compte"></select></div>
+        <div class="form-group"><label for="dep-cat">Catégorie</label><select id="dep-cat"></select></div>
+        <div class="form-group"><label for="dep-compte">Compte</label><select id="dep-compte"></select></div>
       </div>
       <button class="btn btn-primary" onclick="ajouterDepense()">+ Ajouter</button>
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes dépenses (<span id="dep-count">0</span>)</div>
+        <div class="section-title" style="margin-bottom:0;flex-shrink:0;white-space:nowrap;">Mes dépenses (<span id="dep-count" aria-live="polite" aria-atomic="true">0</span>)</div>
         <div style="flex:1;"></div>
         <select id="dep-sort-field" onchange="onDepSortChange()" style="height:30px;font-size:12px;padding:0 6px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);flex:none;width:100px;">
           <option value="date">Date</option>
@@ -445,7 +457,7 @@ window.dispatchEvent(new Event('fb-ready'));
 
   <div style="display:flex;align-items:center;gap:8px;padding:8px 0;margin-top:0.5rem;">
     <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;"></div>
-    <span id="sync-status" style="font-size:12px;color:var(--text2);">Connexion à Firebase...</span>
+    <span id="sync-status" role="status" aria-live="polite" style="font-size:12px;color:var(--text2);">Connexion à Firebase...</span>
   </div>
 </div>
 
@@ -534,24 +546,24 @@ window.dispatchEvent(new Event('fb-ready'));
 
 <div class="modal-overlay" id="modal-quick-tx" onclick="fermerQuickTxSiOverlay(event)">
   <div class="modal" style="max-width:380px;">
-    <h2 id="qt-modal-title" style="font-size:16px;">⚡ Transaction rapide</h2>
+    <h2 id="qt-modal-title" style="font-size:16px;"><span aria-hidden="true">⚡</span> Transaction rapide</h2>
     <div class="form-group" style="margin-bottom:10px;">
-      <label>Description</label>
+      <label for="qt-desc">Description</label>
       <input type="text" id="qt-desc" placeholder="Ex: Café, épicerie..." maxlength="80">
     </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;margin-bottom:10px;align-items:end;">
       <div class="form-group">
-        <label>Type</label>
-        <button id="qt-sign-btn" onclick="toggleQtSign()" style="height:36px;padding:0 12px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;min-width:96px;background:rgba(226,75,74,0.1);color:var(--red);">− Dépense</button>
+        <label for="qt-sign-btn">Type</label>
+        <button id="qt-sign-btn" onclick="toggleQtSign()" aria-pressed="true" style="height:36px;padding:0 12px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;min-width:96px;background:rgba(226,75,74,0.1);color:var(--red);">− Dépense</button>
       </div>
       <div class="form-group">
-        <label>Montant ($)</label>
-        <input type="number" id="qt-montant" placeholder="0.00" step="0.01" min="0">
+        <label for="qt-montant">Montant ($)</label>
+        <input type="number" id="qt-montant" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
       </div>
     </div>
     <div class="form-group" style="margin-bottom:14px;">
-      <label>Compte <span style="color:var(--red);font-size:11px;">requis</span></label>
-      <select id="qt-compte"></select>
+      <label for="qt-compte">Compte <span style="color:var(--red);font-size:11px;" aria-hidden="true">requis</span></label>
+      <select id="qt-compte" aria-required="true"></select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
       <button id="qt-delete-btn" class="btn btn-red" style="display:none;margin-right:auto;" onclick="supprimerQuickTx()">Supprimer</button>
@@ -586,7 +598,7 @@ window.dispatchEvent(new Event('fb-ready'));
     <button class="cp-add-btn" onclick="triggerNativeColorPick()" title="Couleur personnalisée">+</button>
   </div>
 </div>
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
 <script>
@@ -872,14 +884,15 @@ function renderDashSoldesComptes() {
   }
   const container = document.getElementById('dash-soldes-comptes');
   if (!container) return;
-  container.innerHTML = comptes.map(cp => {
+  container.innerHTML = comptes.map((cp, i) => {
     const val = soldes[cp] !== undefined ? soldes[cp] : '';
+    const inputId = `solde-cp-${i}`;
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <label style="font-size:13px;color:var(--text2);min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(cp)}">${escapeHtml(cp)}</label>
-      <input type="number" placeholder="0.00" step="0.01" value="${val}"
-        style="width:120px;"
+      <label for="${inputId}" style="font-size:13px;color:var(--text2);min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(cp)}">${escapeHtml(cp)}</label>
+      <input id="${inputId}" type="number" placeholder="0.00" step="0.01" value="${val}"
+        inputmode="decimal" style="width:120px;"
         data-compte="${escapeHtml(cp)}" oninput="onSoldeCompteInput(this.dataset.compte, this.value)">
-      <span style="font-size:13px;color:var(--text3);">$</span>
+      <span style="font-size:13px;color:var(--text2);" aria-hidden="true">$</span>
     </div>`;
   }).join('');
   // Mettre à jour le total
@@ -965,9 +978,13 @@ function renderQtSignBtn() {
   if (!btn) return;
   if (qtSignIsExpense) {
     btn.textContent = '− Dépense';
+    btn.setAttribute('aria-label', 'Type: Dépense — cliquer pour passer en Revenu');
+    btn.setAttribute('aria-pressed', 'true');
     btn.style.background = 'rgba(226,75,74,0.1)'; btn.style.color = 'var(--red)';
   } else {
     btn.textContent = '+ Revenu';
+    btn.setAttribute('aria-label', 'Type: Revenu — cliquer pour passer en Dépense');
+    btn.setAttribute('aria-pressed', 'false');
     btn.style.background = 'rgba(29,158,117,0.1)'; btn.style.color = 'var(--green)';
   }
 }
@@ -1185,7 +1202,7 @@ function renderCatList() {
       ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${escapeHtml(cat)}</span>
-      <div class="cat-color-dot" style="background:${ccolor};" title="Changer la couleur" data-type="cat" data-name="${escapeHtml(cat)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
+      <div class="cat-color-dot" style="background:${ccolor};" role="button" tabindex="0" title="Changer la couleur" aria-label="Changer la couleur de ${escapeHtml(cat)}" data-type="cat" data-name="${escapeHtml(cat)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openColorPicker(this.dataset.type, this.dataset.name, event);}"></div>
       <button class="cat-delete" title="Modifier" aria-label="Modifier ${escapeHtml(cat)}" onclick="startEditCat(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" aria-label="Supprimer ${escapeHtml(cat)}" onclick="supprimerCategorie(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -1273,7 +1290,7 @@ function renderCompteList() {
       ondragleave="onDragLeaveC(event)" ondrop="onDropC(event,${i})" ondragend="onDragEndC()">
       <span class="cat-drag-handle">⠿</span>
       <span class="cat-name">${escapeHtml(compte)}</span>
-      <div class="cat-color-dot" style="background:${cpcolor};" title="Changer la couleur" data-type="compte" data-name="${escapeHtml(compte)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)"></div>
+      <div class="cat-color-dot" style="background:${cpcolor};" role="button" tabindex="0" title="Changer la couleur" aria-label="Changer la couleur de ${escapeHtml(compte)}" data-type="compte" data-name="${escapeHtml(compte)}" onclick="openColorPicker(this.dataset.type, this.dataset.name, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openColorPicker(this.dataset.type, this.dataset.name, event);}"></div>
       <button class="cat-delete" title="Modifier" aria-label="Modifier ${escapeHtml(compte)}" onclick="startEditCompte(${i})">${SVG_EDIT}</button>
       <button class="cat-delete" style="color:var(--red);" title="Supprimer" aria-label="Supprimer ${escapeHtml(compte)}" onclick="supprimerCompte(${i})">${SVG_DELETE}</button>
     </li>`;
@@ -1470,10 +1487,10 @@ function showTab(id, btn, skipScroll = false) {
     if (curId) tabScrollPos[curId] = window.scrollY;
   }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>{ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
   document.getElementById('tab-'+id).classList.add('active');
   const activeBtn = btn || document.querySelectorAll('.tab')[TABS.indexOf(id)];
-  if (activeBtn) activeBtn.classList.add('active');
+  if (activeBtn) { activeBtn.classList.add('active'); activeBtn.setAttribute('aria-selected','true'); }
   if (id==='tableau-bord') updateAnalytics();
   if (id==='transactions') updateDashboard();
   if (id==='depenses') { editingId=null; renderDepenses(); }
@@ -1560,7 +1577,7 @@ function renderRevenus() {
       return `<div class="entry-card editing">
         <div class="entry-card-row"><input class="inline-edit" id="redit-desc-${r.id}" value="${escapeHtml(r.desc)}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
-          <input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
+          <input class="inline-edit" type="number" id="redit-montant-${r.id}" value="${r.montant}" step="0.01" min="0" placeholder="Montant" inputmode="decimal" style="width:90px;flex:none;">
           <input class="inline-edit" type="date" id="redit-date-${r.id}" value="${r.date}" style="flex:1;min-width:120px;">
           <select class="inline-edit" id="redit-freq-${r.id}" style="flex:1;min-width:100px;">${fo}</select>
         </div>
@@ -1652,7 +1669,7 @@ function renderDepenses() {
       return `<div class="entry-card editing">
         <div class="entry-card-row"><input class="inline-edit" id="edit-desc-${d.id}" value="${escapeHtml(d.desc)}" placeholder="Description" style="flex:1;min-width:0;"></div>
         <div class="entry-card-row">
-          <input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" placeholder="Montant" style="width:90px;flex:none;">
+          <input class="inline-edit" type="number" id="edit-montant-${d.id}" value="${d.montant}" step="0.01" min="0" placeholder="Montant" inputmode="decimal" style="width:90px;flex:none;">
           <input class="inline-edit" type="date" id="edit-date-${d.id}" value="${d.date}" style="flex:1;min-width:120px;">
           <select class="inline-edit" id="edit-freq-${d.id}" style="flex:1;min-width:100px;">${fo}</select>
         </div>
