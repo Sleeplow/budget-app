@@ -147,6 +147,7 @@
   .entry-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; transition: background-color 0.15s; }
   .entry-card:not(.editing):hover { background:var(--bg3); }
   .entry-card.editing { background:var(--bg3); }
+  .entry-card.nav-highlight { box-shadow:0 0 0 2px var(--text); transition:box-shadow 0.15s; }
   .entry-card-desc { font-size:13px; font-weight:500; margin-bottom:6px; word-break:break-word; }
   .entry-card-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; font-size:13px; }
   .entry-card-row:last-child { margin-bottom:0; }
@@ -168,6 +169,22 @@
   .btn-google:hover { background:var(--bg2); }
   .btn-google:disabled { opacity:0.55; cursor:not-allowed; }
   #login-error { font-size:12px; color:var(--red); margin-top:12px; display:none; }
+  /* ── RECHERCHE ── */
+  .search-banner { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 12px; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); margin-bottom:10px; font-size:13px; }
+  .search-chip { background:var(--blue); color:#fff; border-radius:99px; padding:3px 10px; font-size:12px; }
+  .search-chip strong { font-weight:600; }
+  .btn-reinit { margin-left:auto; flex-shrink:0; background:none; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:4px 10px; cursor:pointer; font-size:12px; color:var(--text2); transition:background-color 0.15s; }
+  .btn-reinit:hover { background:var(--bg3); color:var(--text); }
+  .btn-search-active { background:rgba(24,95,165,0.1); border-color:var(--blue); color:var(--blue); }
+  .search-modal-row { margin-bottom:14px; }
+  .search-modal-row > label:first-child { display:block; font-size:12px; color:var(--text2); margin-bottom:5px; font-weight:500; }
+  .search-date-toggle { display:flex; gap:14px; margin-bottom:8px; flex-wrap:wrap; }
+  .search-date-toggle label { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:13px; color:var(--text); font-weight:normal; }
+  .search-montant-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .search-montant-row input { flex:1; min-width:75px; }
+  .search-montant-sep { color:var(--text2); font-size:12px; white-space:nowrap; flex-shrink:0; }
+  .search-periode-row { display:flex; gap:8px; align-items:center; }
+  .search-periode-row input { flex:1; }
 </style>
 <script type="module">
 // ── FIREBASE CONFIG ──
@@ -400,7 +417,9 @@ window.dispatchEvent(new Event('fb-ready'));
           <option value="compte">Compte</option>
         </select>
         <button id="rev-sort-dir" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="toggleRevSortDir()" title="Inverser le tri" aria-label="Inverser le tri">↑</button>
+        <button id="rev-search-btn" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="openRevSearch()" title="Rechercher" aria-label="Rechercher dans les revenus">🔍</button>
       </div>
+      <div id="rev-search-banner" class="search-banner" style="display:none;"></div>
       <div id="rev-list-container"><div class="empty-state">Aucun revenu enregistré</div></div>
     </div>
   </div>
@@ -446,7 +465,9 @@ window.dispatchEvent(new Event('fb-ready'));
           <option value="compte">Compte</option>
         </select>
         <button id="dep-sort-dir" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="toggleDepSortDir()" title="Inverser le tri" aria-label="Inverser le tri">↑</button>
+        <button id="dep-search-btn" class="btn-icon-sm" style="height:36px;width:36px;flex:none;" onclick="openDepSearch()" title="Rechercher" aria-label="Rechercher dans les dépenses">🔍</button>
       </div>
+      <div id="dep-search-banner" class="search-banner" style="display:none;"></div>
       <div id="dep-list-container"><div class="empty-state">Chargement...</div></div>
     </div>
   </div>
@@ -458,6 +479,108 @@ window.dispatchEvent(new Event('fb-ready'));
   <div style="display:flex;align-items:center;gap:8px;padding:8px 0;margin-top:0.5rem;">
     <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;"></div>
     <span id="sync-status" role="status" aria-live="polite" style="font-size:12px;color:var(--text2);">Connexion à Firebase...</span>
+  </div>
+</div>
+
+<!-- MODAL RECHERCHE REVENUS -->
+<div class="modal-overlay" id="modal-rev-search" onclick="fermerModalSiOverlay(event)">
+  <div class="modal">
+    <h2>🔍 Rechercher dans les revenus</h2>
+    <div class="search-modal-row">
+      <label for="rsearch-desc">Description (contient)</label>
+      <input type="text" id="rsearch-desc" placeholder="Ex: Salaire, freelance...">
+    </div>
+    <div class="search-modal-row">
+      <label>Montant ($)</label>
+      <div class="search-montant-row">
+        <input type="number" id="rsearch-montant-exact" placeholder="Exact" step="0.01" min="0">
+        <span class="search-montant-sep">ou entre</span>
+        <input type="number" id="rsearch-montant-min" placeholder="Min" step="0.01" min="0">
+        <span class="search-montant-sep">et</span>
+        <input type="number" id="rsearch-montant-max" placeholder="Max" step="0.01" min="0">
+      </div>
+    </div>
+    <div class="search-modal-row">
+      <label>Date</label>
+      <div class="search-date-toggle">
+        <label><input type="radio" name="rsearch-date-mode" value="aucune" onchange="onRsearchDateModeChange()" checked> Aucune</label>
+        <label><input type="radio" name="rsearch-date-mode" value="unique" onchange="onRsearchDateModeChange()"> Date précise</label>
+        <label><input type="radio" name="rsearch-date-mode" value="periode" onchange="onRsearchDateModeChange()"> Période</label>
+      </div>
+      <div id="rsearch-date-unique-wrap" style="display:none;">
+        <input type="date" id="rsearch-date-unique">
+      </div>
+      <div id="rsearch-date-periode-wrap" class="search-periode-row" style="display:none;">
+        <input type="date" id="rsearch-date-from">
+        <span class="search-montant-sep">au</span>
+        <input type="date" id="rsearch-date-to">
+      </div>
+    </div>
+    <div class="search-modal-row">
+      <label for="rsearch-freq">Fréquence</label>
+      <select id="rsearch-freq"></select>
+    </div>
+    <div class="search-modal-row">
+      <label for="rsearch-compte">Compte</label>
+      <select id="rsearch-compte"></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="applyRevSearch()">Rechercher</button>
+      <button class="btn" onclick="fermerRevSearch()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECHERCHE DÉPENSES -->
+<div class="modal-overlay" id="modal-dep-search" onclick="fermerModalSiOverlay(event)">
+  <div class="modal">
+    <h2>🔍 Rechercher dans les dépenses</h2>
+    <div class="search-modal-row">
+      <label for="dsearch-desc">Description (contient)</label>
+      <input type="text" id="dsearch-desc" placeholder="Ex: Loyer, Netflix...">
+    </div>
+    <div class="search-modal-row">
+      <label>Montant ($)</label>
+      <div class="search-montant-row">
+        <input type="number" id="dsearch-montant-exact" placeholder="Exact" step="0.01" min="0">
+        <span class="search-montant-sep">ou entre</span>
+        <input type="number" id="dsearch-montant-min" placeholder="Min" step="0.01" min="0">
+        <span class="search-montant-sep">et</span>
+        <input type="number" id="dsearch-montant-max" placeholder="Max" step="0.01" min="0">
+      </div>
+    </div>
+    <div class="search-modal-row">
+      <label>Date</label>
+      <div class="search-date-toggle">
+        <label><input type="radio" name="dsearch-date-mode" value="aucune" onchange="onDsearchDateModeChange()" checked> Aucune</label>
+        <label><input type="radio" name="dsearch-date-mode" value="unique" onchange="onDsearchDateModeChange()"> Date précise</label>
+        <label><input type="radio" name="dsearch-date-mode" value="periode" onchange="onDsearchDateModeChange()"> Période</label>
+      </div>
+      <div id="dsearch-date-unique-wrap" style="display:none;">
+        <input type="date" id="dsearch-date-unique">
+      </div>
+      <div id="dsearch-date-periode-wrap" class="search-periode-row" style="display:none;">
+        <input type="date" id="dsearch-date-from">
+        <span class="search-montant-sep">au</span>
+        <input type="date" id="dsearch-date-to">
+      </div>
+    </div>
+    <div class="search-modal-row">
+      <label for="dsearch-cat">Catégorie</label>
+      <select id="dsearch-cat"></select>
+    </div>
+    <div class="search-modal-row">
+      <label for="dsearch-freq">Fréquence</label>
+      <select id="dsearch-freq"></select>
+    </div>
+    <div class="search-modal-row">
+      <label for="dsearch-compte">Compte</label>
+      <select id="dsearch-compte"></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="applyDepSearch()">Rechercher</button>
+      <button class="btn" onclick="fermerDepSearch()">Annuler</button>
+    </div>
   </div>
 </div>
 
@@ -606,6 +729,8 @@ let editingId = null;
 let editingRevId = null;
 let revSort = { field: 'date', asc: true };
 let depSort = { field: 'date', asc: true };
+let revSearch = null;
+let depSearch = null;
 let editingCatIndex = null;
 let editingCompteIndex = null;
 let importPreviewData = null;
@@ -1569,11 +1694,181 @@ function toggleDepSortDir() {
   renderDepenses();
 }
 
+// ── RECHERCHE ──
+function filterBySearch(items, search) {
+  if (!search) return items;
+  return items.filter(item => {
+    if (search.desc && !item.desc.toLowerCase().includes(search.desc.toLowerCase())) return false;
+    if (search.montantExact !== null) {
+      if (Math.abs(item.montant) !== search.montantExact) return false;
+    } else {
+      if (search.montantMin !== null && Math.abs(item.montant) < search.montantMin) return false;
+      if (search.montantMax !== null && Math.abs(item.montant) > search.montantMax) return false;
+    }
+    if (search.dateFrom || search.dateTo) {
+      const from = search.dateFrom || '1900-01-01';
+      const to = search.dateTo || '2999-12-31';
+      if (getOccurrences(item, from, to).length === 0) return false;
+    }
+    if (search.freq && item.freq !== search.freq) return false;
+    if (search.compte && item.compte !== search.compte) return false;
+    if (search.cat && item.cat !== search.cat) return false;
+    return true;
+  });
+}
+
+function renderSearchBanner(bannerId, search, isRev) {
+  const banner = document.getElementById(bannerId);
+  if (!banner) return;
+  if (!search) { banner.style.display = 'none'; return; }
+  const chips = [];
+  if (search.desc) chips.push(`Desc : <strong>${escapeHtml(search.desc)}</strong>`);
+  if (search.montantExact !== null) {
+    chips.push(`Montant : <strong>${search.montantExact} $</strong>`);
+  } else {
+    if (search.montantMin !== null && search.montantMax !== null)
+      chips.push(`Montant : <strong>${search.montantMin} $ – ${search.montantMax} $</strong>`);
+    else if (search.montantMin !== null)
+      chips.push(`Montant : <strong>≥ ${search.montantMin} $</strong>`);
+    else if (search.montantMax !== null)
+      chips.push(`Montant : <strong>≤ ${search.montantMax} $</strong>`);
+  }
+  if (search.dateFrom && search.dateTo && search.dateFrom === search.dateTo) {
+    chips.push(`Date : <strong>${escapeHtml(formatDate(search.dateFrom))}</strong>`);
+  } else if (search.dateFrom || search.dateTo) {
+    const f = search.dateFrom ? escapeHtml(formatDate(search.dateFrom)) : '…';
+    const t = search.dateTo ? escapeHtml(formatDate(search.dateTo)) : '…';
+    chips.push(`Du <strong>${f}</strong> au <strong>${t}</strong>`);
+  }
+  if (search.freq) chips.push(`Fréq : <strong>${escapeHtml(freqLabel(search.freq))}</strong>`);
+  if (search.compte) chips.push(`Compte : <strong>${escapeHtml(search.compte)}</strong>`);
+  if (search.cat) chips.push(`Catégorie : <strong>${escapeHtml(search.cat)}</strong>`);
+  const clearFn = isRev ? 'clearRevSearch' : 'clearDepSearch';
+  banner.style.display = 'flex';
+  banner.innerHTML = chips.map(c => `<span class="search-chip">${c}</span>`).join('') +
+    `<button class="btn-reinit" onclick="${clearFn}()">Réinitialiser</button>`;
+}
+
+function onRsearchDateModeChange() {
+  const mode = document.querySelector('input[name="rsearch-date-mode"]:checked').value;
+  document.getElementById('rsearch-date-unique-wrap').style.display = mode === 'unique' ? 'block' : 'none';
+  document.getElementById('rsearch-date-periode-wrap').style.display = mode === 'periode' ? 'flex' : 'none';
+}
+function onDsearchDateModeChange() {
+  const mode = document.querySelector('input[name="dsearch-date-mode"]:checked').value;
+  document.getElementById('dsearch-date-unique-wrap').style.display = mode === 'unique' ? 'block' : 'none';
+  document.getElementById('dsearch-date-periode-wrap').style.display = mode === 'periode' ? 'flex' : 'none';
+}
+
+function _populateSearchModal(prefix, hascat) {
+  const freqSel = document.getElementById(prefix + 'freq');
+  freqSel.innerHTML = '<option value="">Toutes</option>' +
+    FREQS.map(f => `<option value="${f}">${escapeHtml(freqLabel(f))}</option>`).join('');
+  const comptesSel = document.getElementById(prefix + 'compte');
+  comptesSel.innerHTML = '<option value="">Tous</option>' +
+    getComptes().map(cp => `<option value="${escapeHtml(cp)}">${escapeHtml(cp)}</option>`).join('');
+  if (hascat) {
+    const catSel = document.getElementById(prefix + 'cat');
+    catSel.innerHTML = '<option value="">Toutes</option>' +
+      getCategories().map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  }
+}
+
+function _restoreSearchForm(prefix, search, dateRadioName, dateModeChangeFn) {
+  document.getElementById(prefix + 'desc').value = search ? (search.desc || '') : '';
+  document.getElementById(prefix + 'montant-exact').value = search && search.montantExact !== null ? search.montantExact : '';
+  document.getElementById(prefix + 'montant-min').value = search && search.montantMin !== null ? search.montantMin : '';
+  document.getElementById(prefix + 'montant-max').value = search && search.montantMax !== null ? search.montantMax : '';
+  document.getElementById(prefix + 'freq').value = search ? (search.freq || '') : '';
+  document.getElementById(prefix + 'compte').value = search ? (search.compte || '') : '';
+  if (document.getElementById(prefix + 'cat'))
+    document.getElementById(prefix + 'cat').value = search ? (search.cat || '') : '';
+  let dateMode = 'aucune';
+  if (search && search.dateFrom && search.dateTo && search.dateFrom === search.dateTo) dateMode = 'unique';
+  else if (search && (search.dateFrom || search.dateTo)) dateMode = 'periode';
+  const radio = document.querySelector(`input[name="${dateRadioName}"][value="${dateMode}"]`);
+  if (radio) radio.checked = true;
+  document.getElementById(prefix + 'date-unique').value = (search && dateMode === 'unique') ? search.dateFrom : '';
+  document.getElementById(prefix + 'date-from').value = (search && dateMode === 'periode' && search.dateFrom) ? search.dateFrom : '';
+  document.getElementById(prefix + 'date-to').value = (search && dateMode === 'periode' && search.dateTo) ? search.dateTo : '';
+  dateModeChangeFn();
+}
+
+function _readSearchForm(prefix, dateRadioName, includecat) {
+  const desc = document.getElementById(prefix + 'desc').value.trim();
+  const montantExactRaw = document.getElementById(prefix + 'montant-exact').value;
+  const montantMinRaw = document.getElementById(prefix + 'montant-min').value;
+  const montantMaxRaw = document.getElementById(prefix + 'montant-max').value;
+  const dateMode = document.querySelector(`input[name="${dateRadioName}"]:checked`).value;
+  let dateFrom = null, dateTo = null;
+  if (dateMode === 'unique') {
+    const d = document.getElementById(prefix + 'date-unique').value;
+    if (d) { dateFrom = d; dateTo = d; }
+  } else if (dateMode === 'periode') {
+    dateFrom = document.getElementById(prefix + 'date-from').value || null;
+    dateTo = document.getElementById(prefix + 'date-to').value || null;
+  }
+  const freq = document.getElementById(prefix + 'freq').value;
+  const compte = document.getElementById(prefix + 'compte').value;
+  const cat = includecat ? document.getElementById(prefix + 'cat').value : null;
+  const montantExact = montantExactRaw !== '' ? parseFloat(montantExactRaw) : null;
+  const montantMin = montantMinRaw !== '' ? parseFloat(montantMinRaw) : null;
+  const montantMax = montantMaxRaw !== '' ? parseFloat(montantMaxRaw) : null;
+  const hasFilter = desc || montantExact !== null || montantMin !== null || montantMax !== null || dateFrom || dateTo || freq || compte || cat;
+  if (!hasFilter) return null;
+  return { desc, montantExact, montantMin, montantMax, dateFrom, dateTo, freq, compte, cat };
+}
+
+function openRevSearch() {
+  _populateSearchModal('rsearch-', false);
+  _restoreSearchForm('rsearch-', revSearch, 'rsearch-date-mode', onRsearchDateModeChange);
+  document.getElementById('modal-rev-search').classList.add('open');
+}
+function fermerRevSearch() {
+  document.getElementById('modal-rev-search').classList.remove('open');
+}
+function applyRevSearch() {
+  revSearch = _readSearchForm('rsearch-', 'rsearch-date-mode', false);
+  fermerRevSearch();
+  renderRevenus();
+}
+function clearRevSearch() {
+  revSearch = null;
+  const btn = document.getElementById('rev-search-btn');
+  if (btn) btn.classList.remove('btn-search-active');
+  renderRevenus();
+}
+
+function openDepSearch() {
+  _populateSearchModal('dsearch-', true);
+  _restoreSearchForm('dsearch-', depSearch, 'dsearch-date-mode', onDsearchDateModeChange);
+  document.getElementById('modal-dep-search').classList.add('open');
+}
+function fermerDepSearch() {
+  document.getElementById('modal-dep-search').classList.remove('open');
+}
+function applyDepSearch() {
+  depSearch = _readSearchForm('dsearch-', 'dsearch-date-mode', true);
+  fermerDepSearch();
+  renderDepenses();
+}
+function clearDepSearch() {
+  depSearch = null;
+  const btn = document.getElementById('dep-search-btn');
+  if (btn) btn.classList.remove('btn-search-active');
+  renderDepenses();
+}
+
 function renderRevenus() {
-  document.getElementById('rev-count').textContent=revenus.length;
+  renderSearchBanner('rev-search-banner', revSearch, true);
+  const btn=document.getElementById('rev-search-btn');
+  if(btn) btn.classList.toggle('btn-search-active', !!revSearch);
+  const filtered=filterBySearch(revenus, revSearch);
+  document.getElementById('rev-count').textContent=revSearch?`${filtered.length} / ${revenus.length}`:revenus.length;
   const el=document.getElementById('rev-list-container');
   if (!revenus.length) { el.innerHTML='<div class="empty-state">Aucun revenu enregistré</div>'; return; }
-  const sorted=sortItems(revenus, revSort);
+  if (!filtered.length) { el.innerHTML='<div class="empty-state">Aucun résultat pour cette recherche</div>'; const dirBtn=document.getElementById('rev-sort-dir'); if(dirBtn) dirBtn.textContent=revSort.asc?'↑':'↓'; return; }
+  const sorted=sortItems(filtered, revSort);
   const cards=sorted.map(r=>{
     if (editingRevId===String(r.id)) {
       const fo=FREQS.map(f=>`<option value="${f}" ${f===r.freq?'selected':''}>${freqLabel(f)}</option>`).join('');
@@ -1597,7 +1892,7 @@ function renderRevenus() {
     const compteRevValid=isCompteValid(r.compte);
     const compteRevColor=r.compte&&compteRevValid?getCompteColor(r.compte):null;
     const compteBadgeRev=r.compte?(compteRevValid?`<span class="compte-badge" style="background:${compteRevColor}20;color:${compteRevColor};">${escapeHtml(r.compte)}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${escapeHtml(r.compte)} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<div class="entry-card">
+    return `<div class="entry-card" data-id="${escapeHtml(r.id)}" ondblclick="if(!event.target.closest('button'))startEditRev(this.dataset.id)">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(r.desc)}</span>
         <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;" title="Modifier" aria-label="Modifier" data-id="${escapeHtml(r.id)}" onclick="startEditRev(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -1658,11 +1953,16 @@ function supprimerDepense(id) {
 }
 
 function renderDepenses() {
-  document.getElementById('dep-count').textContent=depenses.length;
+  renderSearchBanner('dep-search-banner', depSearch, false);
+  const btn=document.getElementById('dep-search-btn');
+  if(btn) btn.classList.toggle('btn-search-active', !!depSearch);
+  const filtered=filterBySearch(depenses, depSearch);
+  document.getElementById('dep-count').textContent=depSearch?`${filtered.length} / ${depenses.length}`:depenses.length;
   const el=document.getElementById('dep-list-container');
   if (!depenses.length) { el.innerHTML='<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
+  if (!filtered.length) { el.innerHTML='<div class="empty-state">Aucun résultat pour cette recherche</div>'; const dirBtn=document.getElementById('dep-sort-dir'); if(dirBtn) dirBtn.textContent=depSort.asc?'↑':'↓'; return; }
   const cats=getCategories();
-  const sorted=sortItems(depenses, depSort);
+  const sorted=sortItems(filtered, depSort);
   const cards=sorted.map(d=>{
     const orphan=!isCatValid(d.cat);
     if (editingId===String(d.id)) {
@@ -1694,7 +1994,7 @@ function renderDepenses() {
     const compteDepValid=isCompteValid(d.compte);
     const compteDepColor=d.compte&&compteDepValid?getCompteColor(d.compte):null;
     const compteBadgeDep=d.compte?(compteDepValid?`<span class="compte-badge" style="background:${compteDepColor}20;color:${compteDepColor};">${escapeHtml(d.compte)}</span>`:`<span class="compte-badge" style="background:rgba(226,75,74,0.12);color:var(--red);">${escapeHtml(d.compte)} ⚠</span>`):'<span style="color:var(--text3);font-size:12px;">—</span>';
-    return `<div class="entry-card">
+    return `<div class="entry-card" data-id="${escapeHtml(d.id)}" ondblclick="if(!event.target.closest('button'))startEdit(this.dataset.id)">
       <div class="entry-card-row" style="margin-bottom:6px;">
         <span class="entry-card-desc" style="margin-bottom:0;flex:1;">${escapeHtml(d.desc)}</span>
         <button class="btn-icon-sm" style="height:36px;width:36px;flex:none;" title="Modifier" aria-label="Modifier" data-id="${escapeHtml(d.id)}" onclick="startEdit(this.dataset.id)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -2036,8 +2336,8 @@ function updateDashboard() {
   let all=[];
   const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
-  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep'})));
-  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev'})));
+  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep',sourceId:d.id})));
+  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev',sourceId:r.id})));
   // Injection QT — toujours aujourd'hui, quel que soit startDate
   const qtToday = getQuickTransactions().filter(q => {
     if (q.date !== t) return false;
@@ -2108,7 +2408,7 @@ function updateDashboard() {
       </div>`;
     }
 
-    return dayHeader + `<div style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;">
+    return dayHeader + `<div data-source-id="${escapeHtml(o.sourceId)}" data-source-type="${o.type}" style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;" ondblclick="naviguerVersSource(this.dataset.sourceId,this.dataset.sourceType)">
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
       ${soldeStr}
@@ -2273,10 +2573,10 @@ function updateAnalytics() {
   }
 
   // Projection 6 mois
-  updateProjectionChart(fluxNet);
+  updateProjectionChart();
 }
 
-function updateProjectionChart(fluxNetMensuel) {
+function updateProjectionChart() {
   const canvas = document.getElementById('chart-projection');
   if (!canvas || typeof Chart === 'undefined') return;
 
@@ -2287,11 +2587,23 @@ function updateProjectionChart(fluxNetMensuel) {
   const labels = [], data = [];
   const now = new Date();
   let balance = soldeInit;
+  let totalFlux = 0;
+
   for (let i = 0; i <= 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     labels.push(d.toLocaleString('fr-CA', { month: 'short', year: '2-digit' }));
     data.push(parseFloat(balance.toFixed(2)));
-    balance += fluxNetMensuel;
+    if (i < 6) {
+      const yr = d.getFullYear(), mo = d.getMonth();
+      const firstDay = `${yr}-${String(mo+1).padStart(2,'0')}-01`;
+      const lastDay = `${yr}-${String(mo+1).padStart(2,'0')}-${String(new Date(yr, mo+1, 0).getDate()).padStart(2,'0')}`;
+      let monthRev = 0, monthDep = 0;
+      revenus.forEach(r => { getOccurrences(r, firstDay, lastDay).forEach(() => { monthRev += r.montant; }); });
+      depenses.forEach(dep => { getOccurrences(dep, firstDay, lastDay).forEach(() => { monthDep += dep.montant; }); });
+      const flux = monthRev - monthDep;
+      balance += flux;
+      totalFlux += flux;
+    }
   }
 
   if (projectionChart) { projectionChart.destroy(); projectionChart = null; }
@@ -2299,7 +2611,7 @@ function updateProjectionChart(fluxNetMensuel) {
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const textColor = isDark ? '#aeaeb2' : '#6b6b6b';
   const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const lineColor = fluxNetMensuel >= 0 ? '#1D9E75' : '#E24B4A';
+  const lineColor = totalFlux >= 0 ? '#1D9E75' : '#E24B4A';
 
   projectionChart = new Chart(canvas, {
     type: 'line',
@@ -2517,6 +2829,57 @@ function setupAuth() {
     horizontal = null;
   }, { passive: true });
 })();
+
+// ── NAVIGATION DEPUIS LA LISTE DE TRANSACTIONS ──
+function naviguerVersSource(sourceId, sourceType) {
+  const tab = sourceType === 'rev' ? 'revenus' : 'depenses';
+  const tabBtn = document.getElementById('btn-tab-' + tab);
+  showTab(tab, tabBtn, true);
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`.entry-card[data-id="${CSS.escape(sourceId)}"]`);
+    if (!card) return;
+    document.querySelectorAll('.entry-card.nav-highlight').forEach(el => el.classList.remove('nav-highlight'));
+    card.classList.add('nav-highlight');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => card.classList.remove('nav-highlight'), 2000);
+  });
+}
+
+// Double-tap tactile sur les lignes de transactions
+const _txTaps = new Map();
+document.getElementById('prochaines-list').addEventListener('touchend', function(e) {
+  const row = e.target.closest('[data-source-id]');
+  if (!row) return;
+  const id = row.dataset.sourceId;
+  const now = Date.now();
+  const last = _txTaps.get(id) || 0;
+  if (now - last < 350) {
+    naviguerVersSource(id, row.dataset.sourceType);
+    _txTaps.delete(id);
+  } else {
+    _txTaps.set(id, now);
+  }
+}, { passive: true });
+
+// Double-tap tactile sur les cartes revenus/dépenses pour passer en mode édition
+const _cardTaps = new Map();
+function _setupCardDoubleTap(containerId, editFn) {
+  document.getElementById(containerId).addEventListener('touchend', function(e) {
+    const card = e.target.closest('.entry-card[data-id]');
+    if (!card || card.classList.contains('editing') || e.target.closest('button')) return;
+    const id = card.dataset.id;
+    const now = Date.now();
+    const last = _cardTaps.get(id) || 0;
+    if (now - last < 350) {
+      editFn(id);
+      _cardTaps.delete(id);
+    } else {
+      _cardTaps.set(id, now);
+    }
+  }, { passive: true });
+}
+_setupCardDoubleTap('rev-list-container', startEditRev);
+_setupCardDoubleTap('dep-list-container', startEdit);
 
 // ── INIT ──
 if (window._fbReady) {
