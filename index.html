@@ -2274,10 +2274,10 @@ function updateAnalytics() {
   }
 
   // Projection 6 mois
-  updateProjectionChart(fluxNet);
+  updateProjectionChart();
 }
 
-function updateProjectionChart(fluxNetMensuel) {
+function updateProjectionChart() {
   const canvas = document.getElementById('chart-projection');
   if (!canvas || typeof Chart === 'undefined') return;
 
@@ -2288,11 +2288,23 @@ function updateProjectionChart(fluxNetMensuel) {
   const labels = [], data = [];
   const now = new Date();
   let balance = soldeInit;
+  let totalFlux = 0;
+
   for (let i = 0; i <= 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     labels.push(d.toLocaleString('fr-CA', { month: 'short', year: '2-digit' }));
     data.push(parseFloat(balance.toFixed(2)));
-    balance += fluxNetMensuel;
+    if (i < 6) {
+      const yr = d.getFullYear(), mo = d.getMonth();
+      const firstDay = `${yr}-${String(mo+1).padStart(2,'0')}-01`;
+      const lastDay = `${yr}-${String(mo+1).padStart(2,'0')}-${String(new Date(yr, mo+1, 0).getDate()).padStart(2,'0')}`;
+      let monthRev = 0, monthDep = 0;
+      revenus.forEach(r => { getOccurrences(r, firstDay, lastDay).forEach(() => { monthRev += r.montant; }); });
+      depenses.forEach(dep => { getOccurrences(dep, firstDay, lastDay).forEach(() => { monthDep += dep.montant; }); });
+      const flux = monthRev - monthDep;
+      balance += flux;
+      totalFlux += flux;
+    }
   }
 
   if (projectionChart) { projectionChart.destroy(); projectionChart = null; }
@@ -2300,7 +2312,7 @@ function updateProjectionChart(fluxNetMensuel) {
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const textColor = isDark ? '#aeaeb2' : '#6b6b6b';
   const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const lineColor = fluxNetMensuel >= 0 ? '#1D9E75' : '#E24B4A';
+  const lineColor = totalFlux >= 0 ? '#1D9E75' : '#E24B4A';
 
   projectionChart = new Chart(canvas, {
     type: 'line',
