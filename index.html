@@ -130,6 +130,15 @@
   .toast.success { background: var(--green); color: #fff; }
   .toast.error { background: var(--red); color: #fff; }
   .toast.info { background: var(--blue); color: #fff; }
+  /* Menu contextuel — appui long sur une transaction */
+  .tx-context-menu { position:fixed; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius); padding:4px; z-index:600; box-shadow:0 8px 24px rgba(0,0,0,0.22); display:none; min-width:150px; }
+  .tx-context-menu.open { display:block; }
+  .tx-ctx-btn { display:block; width:100%; padding:11px 14px; text-align:left; background:none; border:none; color:var(--text); font-size:14px; cursor:pointer; border-radius:var(--radius-sm); white-space:nowrap; }
+  .tx-ctx-btn:hover, .tx-ctx-btn:focus { background:var(--bg2); }
+  .tx-ctx-btn.danger { color:var(--red); }
+  /* Transaction retirée — grisée, description barrée, non comptée dans les calculs */
+  .tx-retire { opacity:0.42; }
+  .tx-retire .tx-desc { text-decoration:line-through; }
   .preview-actions { display: flex; gap: 8px; margin-top: 10px; }
   .excel-info { background: rgba(24,95,165,0.07); border: 0.5px solid rgba(24,95,165,0.2); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.6; }
   .color-picker-popup { position:fixed; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius); padding:12px; z-index:300; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; }
@@ -718,6 +727,11 @@ window.dispatchEvent(new Event('fb-ready'));
   </div>
 </div>
 <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"></div>
+<!-- Menu contextuel transaction (appui long) — état session uniquement, non persisté -->
+<div id="tx-context-menu" class="tx-context-menu" role="menu" aria-label="Options de transaction">
+  <button id="tx-ctx-voir" class="tx-ctx-btn" onclick="txCtxVoir()">Voir</button>
+  <button id="tx-ctx-toggle" class="tx-ctx-btn danger" onclick="txCtxToggle()">Retirer</button>
+</div>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-rRoXxn2yHlrZYB587Ki9RO1tONhLdM6XfORg7Rw4uwH4/Fh/5nP7IUX91bkaKUgs" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
 <script>
@@ -742,6 +756,12 @@ let customColors = [];
 let colorPickerTarget = null;
 let qtSignIsExpense = true;
 let editingQtId = null;
+// Transactions retirées pour la session courante (jamais persisté — réinitialisé à chaque chargement)
+// Clé unique par instance : sourceId + '_' + date (ex: "uuid_2026-05-15")
+const _txRetires = new Set();
+let _txLongPressTimer = null;   // timer d'appui long
+let _txLongPressFired = false;  // évite de déclencher le double-tap après un appui long
+let _txContextTarget = null;    // ligne ciblée par le menu contextuel
 
 // ── SÉCURITÉ ──
 function escapeHtml(str) {
@@ -2336,8 +2356,8 @@ function updateDashboard() {
   let all=[];
   const depFiltre = isFiltreCompte ? depenses.filter(d=>d.compte===filtreCompte) : depenses;
   const revFiltre = isFiltreCompte ? revenus.filter(r=>r.compte===filtreCompte) : revenus;
-  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep',sourceId:d.id})));
-  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev',sourceId:r.id})));
+  depFiltre.forEach(d=>getOccurrences(d,startDate,end30).forEach(o=>all.push({date:o.date,desc:d.desc,montant:-d.montant,freq:d.freq,type:'dep',sourceId:d.id,txKey:d.id+'_'+o.date})));
+  revFiltre.forEach(r=>getOccurrences(r,startDate,end30).forEach(o=>all.push({date:o.date,desc:r.desc,montant:r.montant,freq:r.freq,type:'rev',sourceId:r.id,txKey:r.id+'_'+o.date})));
   // Injection QT — toujours aujourd'hui, quel que soit startDate
   const qtToday = getQuickTransactions().filter(q => {
     if (q.date !== t) return false;
@@ -2379,7 +2399,9 @@ function updateDashboard() {
   // Grouper par date pour ajouter les séparateurs
   let currentDate = null;
   const lignes = all.map(o=>{
-    soldeCourant += o.montant;
+    // Une transaction retirée n'est pas comptée dans le solde courant
+    const isRetire = Boolean(o.txKey && _txRetires.has(o.txKey));
+    if (!isRetire) soldeCourant += o.montant;
     const isRev = o.montant >= 0;
     const isNewDay = o.date !== currentDate;
     currentDate = o.date;
@@ -2408,8 +2430,8 @@ function updateDashboard() {
       </div>`;
     }
 
-    return dayHeader + `<div data-source-id="${escapeHtml(o.sourceId)}" data-source-type="${o.type}" style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;" ondblclick="naviguerVersSource(this.dataset.sourceId,this.dataset.sourceType)">
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
+    return dayHeader + `<div data-source-id="${escapeHtml(o.sourceId)}" data-source-type="${o.type}" data-tx-key="${escapeHtml(o.txKey)}"${isRetire ? ' class="tx-retire"' : ''} style="display:grid;${grid};gap:8px;padding:7px 8px;border-bottom:0.5px solid var(--border);font-size:13px;align-items:center;" ondblclick="naviguerVersSource(this.dataset.sourceId,this.dataset.sourceType)">
+      <span class="tx-desc" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.desc)} <span class="freq-tag">${freqLabel(o.freq)}</span></span>
       ${montantStr}
       ${soldeStr}
     </div>`;
@@ -2420,8 +2442,8 @@ function updateDashboard() {
   // Résumé final si solde de départ connu
   if (soldeFinalEl) {
     if (hasSolde) {
-      const totalDep = all.filter(o=>o.montant<0).reduce((s,o)=>s+Math.abs(o.montant),0);
-      const totalRev = all.filter(o=>o.montant>0).reduce((s,o)=>s+o.montant,0);
+      const totalDep = all.filter(o=>o.montant<0 && !_txRetires.has(o.txKey)).reduce((s,o)=>s+Math.abs(o.montant),0);
+      const totalRev = all.filter(o=>o.montant>0 && !_txRetires.has(o.txKey)).reduce((s,o)=>s+o.montant,0);
       const fc = soldeCourant>=0 ? 'var(--green)' : 'var(--red)';
       soldeFinalEl.innerHTML = `
         <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:1rem;display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
@@ -2845,9 +2867,93 @@ function naviguerVersSource(sourceId, sourceType) {
   });
 }
 
-// Double-tap tactile sur les lignes de transactions
+// ── MENU CONTEXTUEL TRANSACTIONS ──
+
+/** Affiche le menu contextuel près du point de contact/curseur. */
+function showTxContextMenu(row, x, y) {
+  const menu = document.getElementById('tx-context-menu');
+  const isRetire = _txRetires.has(row.dataset.txKey);
+  document.getElementById('tx-ctx-toggle').textContent = isRetire ? 'Ajouter' : 'Retirer';
+  _txContextTarget = row;
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  menu.classList.add('open');
+  // Recadre si le menu dépasse le bord de l'écran
+  const r = menu.getBoundingClientRect();
+  if (r.right  > window.innerWidth)  menu.style.left = (x - r.width)  + 'px';
+  if (r.bottom > window.innerHeight) menu.style.top  = (y - r.height) + 'px';
+}
+
+/** Ferme le menu contextuel et libère la cible. */
+function hideTxContextMenu() {
+  document.getElementById('tx-context-menu').classList.remove('open');
+  _txContextTarget = null;
+}
+
+/** Bouton "Voir" — même effet que le double-clic. */
+function txCtxVoir() {
+  if (!_txContextTarget) return;
+  const { sourceId, sourceType } = _txContextTarget.dataset;
+  hideTxContextMenu();
+  naviguerVersSource(sourceId, sourceType);
+}
+
+/**
+ * Bouton "Retirer" / "Ajouter" — bascule l'état retiré de l'instance touchée.
+ * N'affecte que cette session ; aucune persistance Firestore.
+ */
+function txCtxToggle() {
+  if (!_txContextTarget) return;
+  const key = _txContextTarget.dataset.txKey;
+  if (_txRetires.has(key)) {
+    _txRetires.delete(key);
+  } else {
+    _txRetires.add(key);
+  }
+  hideTxContextMenu();
+  updateDashboard(); // recalcule solde et totaux
+}
+
+// Ferme le menu sur tout clic extérieur (desktop et mobile)
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#tx-context-menu')) hideTxContextMenu();
+});
+
+// Clic droit bureau → menu contextuel
+document.getElementById('prochaines-list').addEventListener('contextmenu', function(e) {
+  const row = e.target.closest('[data-tx-key]');
+  if (!row) return;
+  e.preventDefault();
+  showTxContextMenu(row, e.clientX, e.clientY);
+});
+
+// ── GESTES TACTILES — appui long + double-tap ──
 const _txTaps = new Map();
+
+document.getElementById('prochaines-list').addEventListener('touchstart', function(e) {
+  const row = e.target.closest('[data-tx-key]');
+  if (!row) return;
+  const touch = e.touches[0];
+  const x = touch.clientX;
+  const y = touch.clientY;
+  _txLongPressFired = false;
+  // Déclenche le menu contextuel après 500 ms d'appui
+  _txLongPressTimer = setTimeout(function() {
+    _txLongPressFired = true;
+    _txLongPressTimer = null;
+    showTxContextMenu(row, x, y);
+  }, 500);
+}, { passive: true });
+
+// Annule l'appui long si le doigt bouge (scroll)
+document.getElementById('prochaines-list').addEventListener('touchmove', function() {
+  if (_txLongPressTimer) { clearTimeout(_txLongPressTimer); _txLongPressTimer = null; }
+}, { passive: true });
+
 document.getElementById('prochaines-list').addEventListener('touchend', function(e) {
+  if (_txLongPressTimer) { clearTimeout(_txLongPressTimer); _txLongPressTimer = null; }
+  // Ne pas déclencher le double-tap si l'appui long vient de s'activer
+  if (_txLongPressFired) { _txLongPressFired = false; return; }
   const row = e.target.closest('[data-source-id]');
   if (!row) return;
   const id = row.dataset.sourceId;
